@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import os
 import pandas as pd
+from concurrent import futures
 import warnings
+import time
 
 warnings.filterwarnings("ignore")
 
@@ -144,25 +146,14 @@ def load_sla_file(sla_file):
                             
     return slapt_num
 
-def forward_intersec_on_const_level():
+def forward_intersec_unit(obj_name,intersec_type='single point'):
     global tiept_info
-    objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
 
     max_iter=100
     eps=1e-5
+    indices=np.where(tiept_info['object_name']==obj_name)[0]
 
-    duplicate_indices=np.where(counts>1)[0]
-    valid_objname=objname_set[duplicate_indices]
-      
-    tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
-
-    for key in tiept_info.keys():
-        temp_values=tiept_info[key][tiept_idx]
-        tiept_info[key]=temp_values
-
-    for obj_name in tqdm(valid_objname):
-        indices=np.where(tiept_info['object_name']==obj_name)[0]
-    
+    if intersec_type=='single point':
         for idx in indices:
         
             flag=True
@@ -291,31 +282,9 @@ def forward_intersec_on_const_level():
                 tiept_info['objpt_x'][idx]=lon
                 tiept_info['objpt_y'][idx]=lat
                 tiept_info['objpt_z'][idx]=hei
-    
-    indices=tiept_info['objpt_x']!=0
-    for key in tiept_info.keys():
-        tiept_info[key]=tiept_info[key][indices]
 
-    tiept_info=tiept_info.dropna(how = 'all')
-
-def forward_intersec():
-    global tiept_info
-
-    max_iter=100
-    eps=1e-5
-    objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
-    duplicate_indices=np.where(counts>1)[0]
-    valid_objname=objname_set[duplicate_indices]
-      
-    tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
-
-    for key in tiept_info.keys():
-        temp_values=tiept_info[key][tiept_idx]
-        tiept_info[key]=temp_values
-    
-    for obj_name in tqdm(valid_objname):
+    elif intersec_type=='multiple points':
         flag=True
-        indices=np.where(tiept_info['object_name']==obj_name)[0]
         tiept_num=len(indices)
         image_id=tiept_info['img_id'][indices].astype('int')
 
@@ -444,8 +413,37 @@ def forward_intersec():
         tiept_info['objpt_x'][indices]=lon
         tiept_info['objpt_y'][indices]=lat
         tiept_info['objpt_z'][indices]=hei
-        
-    tiept_info=tiept_info.dropna(how = 'all')
+
+def forward_intersec_on_const_level():
+    global tiept_info
+    local_indices=np.isin(tiept_info['img_id'],image_info['ImageID'])
+    tiept_info=tiept_info.iloc[local_indices]
+    objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
+
+    duplicate_indices=np.where(counts>1)[0]
+    valid_objname=objname_set[duplicate_indices]
+      
+    tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
+
+    tiept_info=tiept_info.iloc[tiept_idx]
+
+    with futures.ThreadPoolExecutor() as texecutor:
+        texecutor.map(forward_intersec_unit,valid_objname)
+
+def forward_intersec():
+    global tiept_info
+    local_indices=np.isin(tiept_info['img_id'],image_info['ImageID'])
+    tiept_info=tiept_info.iloc[local_indices]
+
+    objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
+    duplicate_indices=np.where(counts>1)[0]
+    valid_objname=objname_set[duplicate_indices]
+      
+    tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
+    tiept_info=tiept_info.iloc[tiept_idx]
+
+    with futures.ThreadPoolExecutor() as texecutor:
+        texecutor.map(forward_intersec_unit,valid_objname)
 
 def refine_para_compute(refine_model=None):
     img_num=len(image_info['ImageID'])
@@ -458,10 +456,7 @@ def refine_para_compute(refine_model=None):
     for id in image_info['ImageID']:
         indices=np.where(tiept_info['img_id']==id)[0]
         tiept_num=len(indices)
-        tiept_curr_img=dict(key=['imgpt_id','object_name','img_id','imgpt_y','imgpt_x','objpt_x','objpt_y','objpt_z'])
-
-        for key in tiept_info.keys():
-            tiept_curr_img[key]=tiept_info[key][indices]
+        tiept_curr_img=tiept_info.iloc[indices]
         
         L=tiept_curr_img['objpt_x'].astype('float32')
         B=tiept_curr_img['objpt_y'].astype('float32')
@@ -562,8 +557,7 @@ def ground2imge():
             tiept_num=len(indices)
             tiept_curr_img=dict(key=['img_id','imgpt_x','img_pt_y','object_name','objpt_x','objpt_y','objpt_z'])
 
-            for key in tiept_info.keys():
-                tiept_curr_img[key]=tiept_info[key][indices]
+            tiept_curr_img=tiept_info.iloc[indices]
 
             L=tiept_curr_img['objpt_x'].astype('float32')
             B=tiept_curr_img['objpt_y'].astype('float32')
@@ -616,8 +610,7 @@ def accuracy_assessment(refine_model='translation'):
             indices=np.where(tiept_info['img_id']==id)[0]
             tiept_curr_img=dict(key=['imgpt_id','object_name','img_id','imgpt_y','imgpt_x','objpt_x','objpt_y','objpt_z','imgpt_x_bk','imgpt_y_bk'])
 
-            for key in tiept_info.keys():
-                tiept_curr_img[key]=tiept_info[key][indices]
+            tiept_curr_img=tiept_info.iloc[indices]
 
             if refine_model=='translation':
                 x_diff=tiept_curr_img['imgpt_x_bk']-tiept_curr_img['imgpt_x']-image_info['refine_paras'][id][0]
@@ -803,6 +796,7 @@ def block_adjustment(refine_model='translation',adjust_method='with_laser'):
             iter_count+=1
 
 if __name__=='__main__':
+    s=time.perf_counter()
     ############ pre-defined parameters ############
     paras=np.asarray([4,3,2,1,5]).reshape((5,1))
     paras_num=len(paras)
@@ -823,8 +817,15 @@ if __name__=='__main__':
     # format_writing_tiepts(tiept_info,tiept_out_file)
     # slapt_num,slapt_info=load_sla_file(sla_file)
     forward_intersec_on_const_level()
+
     forward_intersec()
+
+    tiept_info=tiept_info[tiept_info['objpt_x']!=0]
+    tiept_info.index=range(len(tiept_info))
+
     refine_para_compute(refine_model='translation')
     ground2imge()
     accuracy_assessment(refine_model='translation')
     # block_adjustment(tiept_info,tiept_num,image_info,refine_model='translation',adjust_method='with_laser')
+    e=time.perf_counter()
+    print(e-s)
