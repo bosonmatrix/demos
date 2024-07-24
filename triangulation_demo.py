@@ -156,9 +156,7 @@ def forward_intersec_on_const_level():
       
     tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
 
-    for key in tiept_info.keys():
-        temp_values=tiept_info[key][tiept_idx]
-        tiept_info[key]=temp_values
+    tiept_info=tiept_info.loc[tiept_idx]
 
     for obj_name in tqdm(valid_objname):
         indices=np.where(tiept_info['object_name']==obj_name)[0]
@@ -293,10 +291,9 @@ def forward_intersec_on_const_level():
                 tiept_info['objpt_z'][idx]=hei
     
     indices=tiept_info['objpt_x']!=0
-    for key in tiept_info.keys():
-        tiept_info[key]=tiept_info[key][indices]
+    tiept_info=tiept_info.loc[indices]
 
-    tiept_info=tiept_info.dropna(how = 'all')
+    tiept_info.index=range(len(tiept_info))
 
 def forward_intersec():
     global tiept_info
@@ -309,15 +306,14 @@ def forward_intersec():
       
     tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
 
-    for key in tiept_info.keys():
-        temp_values=tiept_info[key][tiept_idx]
-        tiept_info[key]=temp_values
+    tiept_info=tiept_info.loc[tiept_idx]
+    tiept_info.index=range(len(tiept_info))
     
     for obj_name in tqdm(valid_objname):
         flag=True
         indices=np.where(tiept_info['object_name']==obj_name)[0]
         tiept_num=len(indices)
-        image_id=tiept_info['img_id'][indices].astype('int')
+        image_id=tiept_info.loc[indices,'img_id'].astype('int')
 
         X=np.zeros((3*tiept_num))
         A=np.zeros((2*tiept_num,3))
@@ -444,8 +440,8 @@ def forward_intersec():
         tiept_info['objpt_x'][indices]=lon
         tiept_info['objpt_y'][indices]=lat
         tiept_info['objpt_z'][indices]=hei
-        
-    tiept_info=tiept_info.dropna(how = 'all')
+
+    tiept_info.index=range(len(tiept_info))
 
 def refine_para_compute(refine_model=None):
     img_num=len(image_info['ImageID'])
@@ -460,8 +456,7 @@ def refine_para_compute(refine_model=None):
         tiept_num=len(indices)
         tiept_curr_img=dict(key=['imgpt_id','object_name','img_id','imgpt_y','imgpt_x','objpt_x','objpt_y','objpt_z'])
 
-        for key in tiept_info.keys():
-            tiept_curr_img[key]=tiept_info[key][indices]
+        tiept_curr_img=tiept_info.loc[indices]
         
         L=tiept_curr_img['objpt_x'].astype('float32')
         B=tiept_curr_img['objpt_y'].astype('float32')
@@ -551,8 +546,6 @@ def refine_para_compute(refine_model=None):
         image_info['refine_paras'][id]=refine_paras
         tqdm.write(f'{refine_paras}')
 
-    return image_info
-
 def ground2imge():
     tiept_info['imgpt_x_bk']=np.zeros(np.size(tiept_info['imgpt_x']))
     tiept_info['imgpt_y_bk']=np.zeros(np.size(tiept_info['imgpt_y']))
@@ -562,8 +555,7 @@ def ground2imge():
             tiept_num=len(indices)
             tiept_curr_img=dict(key=['img_id','imgpt_x','img_pt_y','object_name','objpt_x','objpt_y','objpt_z'])
 
-            for key in tiept_info.keys():
-                tiept_curr_img[key]=tiept_info[key][indices]
+            tiept_curr_img=tiept_info.loc[indices]
 
             L=tiept_curr_img['objpt_x'].astype('float32')
             B=tiept_curr_img['objpt_y'].astype('float32')
@@ -609,15 +601,12 @@ def ground2imge():
             l=(LNUM/LDEN)*image_info['lineScale'][id]+image_info['lineOffset'][id];s=(SNUM/SDEN)*image_info['sampScale'][id]+image_info['sampOffset'][id]
             tiept_info['imgpt_x_bk'][indices]=l;tiept_info['imgpt_y_bk'][indices]=s
 
-    return tiept_info
-
 def accuracy_assessment(refine_model='translation'):
     for id in tqdm(image_info['ImageID'],desc=f'accracy assessing images'):
             indices=np.where(tiept_info['img_id']==id)[0]
             tiept_curr_img=dict(key=['imgpt_id','object_name','img_id','imgpt_y','imgpt_x','objpt_x','objpt_y','objpt_z','imgpt_x_bk','imgpt_y_bk'])
 
-            for key in tiept_info.keys():
-                tiept_curr_img[key]=tiept_info[key][indices]
+            tiept_curr_img=tiept_info.loc[indices]
 
             if refine_model=='translation':
                 x_diff=tiept_curr_img['imgpt_x_bk']-tiept_curr_img['imgpt_x']-image_info['refine_paras'][id][0]
