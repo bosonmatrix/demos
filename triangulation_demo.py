@@ -146,14 +146,14 @@ def load_sla_file(sla_file):
                             
     return slapt_num
 
-def forward_intersec_unit(obj_name,intersec_type='single point'):
+def forward_intersec_unit(obj_name,intersec_type='single_point'):
     global tiept_info
 
     max_iter=100
     eps=1e-5
     indices=np.where(tiept_info['object_name']==obj_name)[0]
 
-    if intersec_type=='single point':
+    if intersec_type=='single_point':
         for idx in indices:
         
             flag=True
@@ -283,7 +283,7 @@ def forward_intersec_unit(obj_name,intersec_type='single point'):
                 tiept_info['objpt_y'][idx]=lat
                 tiept_info['objpt_z'][idx]=hei
 
-    elif intersec_type=='multiple points':
+    elif intersec_type=='multiple_points':
         flag=True
         tiept_num=len(indices)
         image_id=tiept_info['img_id'][indices].astype('int')
@@ -427,8 +427,10 @@ def forward_intersec_on_const_level():
 
     tiept_info=tiept_info.iloc[tiept_idx]
 
+    paras=valid_objname,['single_point']*len(valid_objname)
+
     with futures.ThreadPoolExecutor() as texecutor:
-        texecutor.map(forward_intersec_unit,valid_objname)
+        texecutor.map(forward_intersec_unit,*paras)
 
 def forward_intersec():
     global tiept_info
@@ -442,8 +444,10 @@ def forward_intersec():
     tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
     tiept_info=tiept_info.iloc[tiept_idx]
 
+    paras=valid_objname,['multiple_points']*len(valid_objname)
+
     with futures.ThreadPoolExecutor() as texecutor:
-        texecutor.map(forward_intersec_unit,valid_objname)
+        texecutor.map(forward_intersec_unit,*paras)
 
 def refine_para_compute(refine_model=None):
     img_num=len(image_info['ImageID'])
@@ -820,7 +824,7 @@ if __name__=='__main__':
 
     forward_intersec()
 
-    tiept_info=tiept_info[tiept_info['objpt_x']!=0]
+    tiept_info=tiept_info.loc[tiept_info['objpt_x']!=0]
     tiept_info.index=range(len(tiept_info))
 
     refine_para_compute(refine_model='translation')
@@ -828,4 +832,4 @@ if __name__=='__main__':
     accuracy_assessment(refine_model='translation')
     # block_adjustment(tiept_info,tiept_num,image_info,refine_model='translation',adjust_method='with_laser')
     e=time.perf_counter()
-    print(e-s)
+    print((e-s)/60)
