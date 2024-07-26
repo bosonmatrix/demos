@@ -147,8 +147,6 @@ def load_sla_file(sla_file):
     return slapt_num
 
 def forward_intersec_unit(obj_name,intersec_type='single_point'):
-    global tiept_info
-
     max_iter=100
     eps=1e-5
     indices=np.where(tiept_info['object_name']==obj_name)[0]
@@ -378,12 +376,8 @@ def forward_intersec_unit(obj_name,intersec_type='single_point'):
             dLlat=dLB/image_info['latScale'][image_id];dLlon=dLL/image_info['longScale'][image_id];dLhei=dLH/image_info['heightScale'][image_id]
             dSlat=dSB/image_info['latScale'][image_id];dSlon=dSL/image_info['longScale'][image_id];dShei=dSH/image_info['heightScale'][image_id]
 
-            # line_refine=image_info['refine_paras'][image_id][0]
-            # sample_refine=image_info['refine_paras'][image_id][1]
             l=np.asarray(tiept_info['imgpt_x'][indices])
             s=np.asarray(tiept_info['imgpt_y'][indices])
-            # l=l+line_refine
-            # s=s+sample_refine
 
             for i in range(tiept_num):
                 A[i*2:(i+1)*2,:]=np.asarray([[dLlon.values[i]*image_info['lineScale'][image_id][i],dLlat.values[i]*image_info['lineScale'][image_id][i],dLhei.values[i]*image_info['lineScale'][image_id][i]],\
@@ -416,8 +410,6 @@ def forward_intersec_unit(obj_name,intersec_type='single_point'):
 
 def forward_intersec_on_const_level():
     global tiept_info
-    local_indices=np.isin(tiept_info['img_id'],image_info['ImageID'])
-    tiept_info=tiept_info.iloc[local_indices]
     objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
 
     duplicate_indices=np.where(counts>1)[0]
@@ -425,36 +417,35 @@ def forward_intersec_on_const_level():
       
     tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
 
-    tiept_info=tiept_info.iloc[tiept_idx]
+    tiept_info=tiept_info.loc[tiept_idx]
 
     paras=valid_objname,['single_point']*len(valid_objname)
 
     with futures.ThreadPoolExecutor() as texecutor:
         texecutor.map(forward_intersec_unit,*paras)
-
+    
     indices=tiept_info['objpt_x']!=0
     tiept_info=tiept_info.loc[indices]
+
     tiept_info.index=range(len(tiept_info))
 
 def forward_intersec():
     global tiept_info
-    local_indices=np.isin(tiept_info['img_id'],image_info['ImageID'])
-    tiept_info=tiept_info.iloc[local_indices]
 
     objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
     duplicate_indices=np.where(counts>1)[0]
     valid_objname=objname_set[duplicate_indices]
       
     tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
-    tiept_info=tiept_info.iloc[tiept_idx]
 
+    tiept_info=tiept_info.loc[tiept_idx]
+    tiept_info.index=range(len(tiept_info))
+    
     paras=valid_objname,['multiple_points']*len(valid_objname)
 
     with futures.ThreadPoolExecutor() as texecutor:
         texecutor.map(forward_intersec_unit,*paras)
 
-    indices=tiept_info['objpt_x']!=0
-    tiept_info=tiept_info.loc[indices]
     tiept_info.index=range(len(tiept_info))
 
 def refine_para_compute(refine_model=None):
