@@ -419,10 +419,8 @@ def forward_intersec_on_const_level():
 
     tiept_info=tiept_info.loc[tiept_idx]
 
-    paras=valid_objname,['single_point']*len(valid_objname)
-
-    with futures.ThreadPoolExecutor() as texecutor:
-        texecutor.map(forward_intersec_unit,*paras)
+    with futures.ProcessPoolExecutor() as pexecutor:
+        pexecutor.map(forward_intersec_unit,valid_objname)
     
     indices=tiept_info['objpt_x']!=0
     tiept_info=tiept_info.loc[indices]
@@ -819,6 +817,10 @@ if __name__=='__main__':
     tiept_num,tiept_info=load_tiept_data(tiept_image_file)
     # format_writing_tiepts(tiept_info,tiept_out_file)
     # slapt_num,slapt_info=load_sla_file(sla_file)
+
+    current_idx=np.where(np.isin(tiept_info['img_id'],image_info['ImageID']))[0]
+    tiept_info=tiept_info.loc[current_idx]
+
     forward_intersec_on_const_level()
 
     forward_intersec()
