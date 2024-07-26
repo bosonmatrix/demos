@@ -432,6 +432,10 @@ def forward_intersec_on_const_level():
     with futures.ThreadPoolExecutor() as texecutor:
         texecutor.map(forward_intersec_unit,*paras)
 
+    indices=tiept_info['objpt_x']!=0
+    tiept_info=tiept_info.loc[indices]
+    tiept_info.index=range(len(tiept_info))
+
 def forward_intersec():
     global tiept_info
     local_indices=np.isin(tiept_info['img_id'],image_info['ImageID'])
@@ -448,6 +452,10 @@ def forward_intersec():
 
     with futures.ThreadPoolExecutor() as texecutor:
         texecutor.map(forward_intersec_unit,*paras)
+
+    indices=tiept_info['objpt_x']!=0
+    tiept_info=tiept_info.loc[indices]
+    tiept_info.index=range(len(tiept_info))
 
 def refine_para_compute(refine_model=None):
     img_num=len(image_info['ImageID'])
