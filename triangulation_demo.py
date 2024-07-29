@@ -310,12 +310,12 @@ def forward_intersec_multiple_points(obj_name):
 
         BL=B*L;BH=B*H;LH=L*H;BB=B*B;LL=L*L;HH=H*H;BLH=B*L*H;BBL=B*B*L;BBH=B*B*H;LLB=L*L*B;LLH=L*L*H;HHB=H*H*B;HHL=H*H*L;BBB=B*B*B;LLL=L*L*L;HHH=H*H*H
         LNUM=image_info['lineNumCoef'][image_id][:,0]+image_info['lineNumCoef'][image_id][:,1]*L+image_info['lineNumCoef'][image_id][:,2]*B+image_info['lineNumCoef'][image_id][:,3]*H\
-                        +image_info['lineNumCoef'][image_id][:,4]*BL+image_info['lineNumCoef'][image_id][:,5]*LH+image_info['lineNumCoef'][image_id][:,6]*BH\
-                        +image_info['lineNumCoef'][image_id][:,7]*LL+image_info['lineNumCoef'][image_id][:,8]*BB+image_info['lineNumCoef'][image_id][:,9]*HH\
-                        +image_info['lineNumCoef'][image_id][:,10]*BLH+image_info['lineNumCoef'][image_id][:,11]*LLL+image_info['lineNumCoef'][image_id][:,12]*BBL\
-                        +image_info['lineNumCoef'][image_id][:,13]*HHL+image_info['lineNumCoef'][image_id][:,14]*LLB+image_info['lineNumCoef'][image_id][:,15]*BBB\
-                        +image_info['lineNumCoef'][image_id][:,16]*HHB+image_info['lineNumCoef'][image_id][:,17]*LLH+image_info['lineNumCoef'][image_id][:,18]*BBH\
-                        +image_info['lineNumCoef'][image_id][:,19]*HHH
+                +image_info['lineNumCoef'][image_id][:,4]*BL+image_info['lineNumCoef'][image_id][:,5]*LH+image_info['lineNumCoef'][image_id][:,6]*BH\
+                +image_info['lineNumCoef'][image_id][:,7]*LL+image_info['lineNumCoef'][image_id][:,8]*BB+image_info['lineNumCoef'][image_id][:,9]*HH\
+                +image_info['lineNumCoef'][image_id][:,10]*BLH+image_info['lineNumCoef'][image_id][:,11]*LLL+image_info['lineNumCoef'][image_id][:,12]*BBL\
+                +image_info['lineNumCoef'][image_id][:,13]*HHL+image_info['lineNumCoef'][image_id][:,14]*LLB+image_info['lineNumCoef'][image_id][:,15]*BBB\
+                +image_info['lineNumCoef'][image_id][:,16]*HHB+image_info['lineNumCoef'][image_id][:,17]*LLH+image_info['lineNumCoef'][image_id][:,18]*BBH\
+                +image_info['lineNumCoef'][image_id][:,19]*HHH
                 
         LDEN=image_info['lineDenCoef'][image_id][:,0]+image_info['lineDenCoef'][image_id][:,1]*L+image_info['lineDenCoef'][image_id][:,2]*B+image_info['lineDenCoef'][image_id][:,3]*H\
                 +image_info['lineDenCoef'][image_id][:,4]*BL+image_info['lineDenCoef'][image_id][:,5]*LH+image_info['lineDenCoef'][image_id][:,6]*BH\
@@ -384,14 +384,13 @@ def forward_intersec_multiple_points(obj_name):
         s=np.asarray(tiept_info['imgpt_y'][indices])
 
         for i in range(tiept_num):
-            A[i*2:(i+1)*2,:]=np.asarray([[dLlon.values[i]*image_info['lineScale'][image_id][i],dLlat.values[i]*image_info['lineScale'][image_id][i],dLhei.values[i]*image_info['lineScale'][image_id][i]],\
-                                                            [dSlon.values[i]*image_info['sampScale'][image_id][i],dSlat.values[i]*image_info['sampScale'][image_id][i],dShei.values[i]*image_info['sampScale'][image_id][i]]])
-            fl_0=(LNUM.values[i]/LDEN.values[i])*image_info['lineScale'][i]+image_info['lineOffset'][i]
-            fs_0=(SNUM.values[i]/SDEN.values[i])*image_info['sampScale'][i]+image_info['sampOffset'][i]
+            A[i*2:(i+1)*2,:]=np.asarray([[dLlon[i]*image_info['lineScale'][image_id[i]],dLlat[i]*image_info['lineScale'][image_id[i]],dLhei[i]*image_info['lineScale'][image_id[i]]],\
+                                                            [dSlon[i]*image_info['sampScale'][image_id[i]],dSlat[i]*image_info['sampScale'][image_id[i]],dShei[i]*image_info['sampScale'][image_id[i]]]])
+            fl_0=(LNUM[i]/LDEN[i])*image_info['lineScale'][image_id[i]]+image_info['lineOffset'][image_id[i]]
+            fs_0=(SNUM[i]/SDEN[i])*image_info['sampScale'][image_id[i]]+image_info['sampOffset'][image_id[i]]
                             
             f[i*2]=l[i]-fl_0
             f[i*2+1]=s[i]-fs_0
-            f=f
 
         coeff=A.T@P@A
         Q_xx=np.linalg.inv(coeff)
@@ -432,15 +431,11 @@ def forward_intersec():
       
     tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
 
-    # tiept_info=tiept_info.loc[tiept_idx]
-    # tiept_info.index=range(len(tiept_info))
     for key in tiept_info.keys():
         tiept_info[key]=tiept_info[key][tiept_idx]
 
     with futures.ThreadPoolExecutor(max_workers=max_core) as texecutor:
         texecutor.map(forward_intersec_multiple_points,valid_objname)
-
-    # tiept_info.index=range(len(tiept_info))
 
 def refine_para_compute(refine_model=None):
     img_num=len(image_info['ImageID'])
@@ -807,25 +802,32 @@ if __name__=='__main__':
     ############ files ############
     order_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\zdb.tri.txt'
     tiept_image_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\zdb.tiepick-ties.tie'
-    tiept_out_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\tiept_xq_detailed.txt'
+    tiept_out_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\tiept_xq_parallel.txt'
     sla_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\tie.sla'
     ################################################
 
     order_info,image_info=load_order_file(order_file)
     load_rpc_file()
-    tiept_num,tiept_info=load_tiept_data(tiept_image_file)
+    # tiept_num,tiept_info=load_tiept_data(tiept_image_file)
     # format_writing_tiepts(tiept_info,tiept_out_file)
     # slapt_num,slapt_info=load_sla_file(sla_file)
 
-    forward_intersec_on_const_level()
+    # forward_intersec_on_const_level()
 
     # tiept_info=tiept_info.loc[tiept_info['objpt_x']!=0]
     # tiept_info=tiept_info[tiept_info['objpt_x']!=0]
     # tiept_info.index=range(len(tiept_info))
-    indices=tiept_info['objpt_x']!=0
-    for key in tiept_info.keys():
-        tiept_info[key]=tiept_info[key][indices]
+    # indices=tiept_info['objpt_x']!=0
+    # for key in tiept_info.keys():
+    #     tiept_info[key]=tiept_info[key][indices]
 
+    tiept_info=pd.read_csv(tiept_out_file,sep='\t')
+    tiept_info.columns=['object_name','objpt_x','objpt_y','objpt_z','img_id','imgpt_x','imgpt_y','Reliability','Type','Overlap','MaxBHR']
+    del tiept_info['Reliability'],tiept_info['Type'],tiept_info['Overlap'],tiept_info['MaxBHR']
+    
+    tiept_info = {col:tiept_info[col].tolist() for col in tiept_info.columns}
+    for key in tiept_info.keys():
+        tiept_info[key]=np.asarray(tiept_info[key])
     forward_intersec()
 
     refine_para_compute(refine_model='translation')
