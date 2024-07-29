@@ -7,6 +7,8 @@ import pandas as pd
 from concurrent import futures
 import warnings
 import time
+import seaborn as sns
+from multiprocessing import cpu_count
 
 warnings.filterwarnings("ignore")
 
@@ -79,7 +81,7 @@ def load_tiept_data(tiept_file):
     for key in tiept_info.keys():
         tiept_info[key]=np.asarray(tiept_info[key])
 
-    tiept_info=pd.DataFrame(tiept_info)
+    # tiept_info=pd.DataFrame(tiept_info)
 
     tiept_num=len(tiept_info['object_name'])
     tiept_info['objpt_x']=np.zeros(tiept_num)
@@ -146,319 +148,320 @@ def load_sla_file(sla_file):
                             
     return slapt_num
 
-def forward_intersec_unit(obj_name,intersec_type='single_point'):
+def forward_intersec_single_point(obj_name):
+    max_iter=100
+    eps=1e-5
+
+    indices=np.where(tiept_info['object_name']==obj_name)[0]
+
+    for idx in indices:
+    
+        flag=True
+        
+        image_id=tiept_info['img_id'][idx].astype('int')
+
+        lon=image_info['longOffset'][image_id]
+        lat=image_info['latOffset'][image_id]
+        hei=image_info['heightOffset'][image_id]
+
+        if image_id in image_info['ImageID']:
+            X=np.zeros((3))
+            A=np.zeros((2,2))
+            f=np.zeros((2))
+            P=np.eye(2)
+
+            iter_count=0
+
+            while flag:
+                tqdm.write(f'forward intersection(single point): the {iter_count+1}th iteration of tiepoint {obj_name}')
+                
+                L=(lon-image_info['longOffset'][image_id])/image_info['longScale'][image_id]
+                B=(lat-image_info['latOffset'][image_id])/image_info['latScale'][image_id]
+                H=(hei-image_info['heightOffset'][image_id])/image_info['heightScale'][image_id]
+
+                BL=B*L;BH=B*H;LH=L*H;BB=B*B;LL=L*L;HH=H*H;BLH=B*L*H;BBL=B*B*L;BBH=B*B*H;LLB=L*L*B;LLH=L*L*H;HHB=H*H*B;HHL=H*H*L;BBB=B*B*B;LLL=L*L*L;HHH=H*H*H
+                LNUM=image_info['lineNumCoef'][image_id][0]+image_info['lineNumCoef'][image_id][1]*L+image_info['lineNumCoef'][image_id][2]*B+image_info['lineNumCoef'][image_id][3]*H\
+                    +image_info['lineNumCoef'][image_id][4]*BL+image_info['lineNumCoef'][image_id][5]*LH+image_info['lineNumCoef'][image_id][6]*BH\
+                    +image_info['lineNumCoef'][image_id][7]*LL+image_info['lineNumCoef'][image_id][8]*BB+image_info['lineNumCoef'][image_id][9]*HH\
+                    +image_info['lineNumCoef'][image_id][10]*BLH+image_info['lineNumCoef'][image_id][11]*LLL+image_info['lineNumCoef'][image_id][12]*BBL\
+                    +image_info['lineNumCoef'][image_id][13]*HHL+image_info['lineNumCoef'][image_id][14]*LLB+image_info['lineNumCoef'][image_id][15]*BBB\
+                    +image_info['lineNumCoef'][image_id][16]*HHB+image_info['lineNumCoef'][image_id][17]*LLH+image_info['lineNumCoef'][image_id][18]*BBH\
+                    +image_info['lineNumCoef'][image_id][19]*HHH
+            
+                LDEN=image_info['lineDenCoef'][image_id][0]+image_info['lineDenCoef'][image_id][1]*L+image_info['lineDenCoef'][image_id][2]*B+image_info['lineDenCoef'][image_id][3]*H\
+                        +image_info['lineDenCoef'][image_id][4]*BL+image_info['lineDenCoef'][image_id][5]*LH+image_info['lineDenCoef'][image_id][6]*BH\
+                        +image_info['lineDenCoef'][image_id][7]*LL+image_info['lineDenCoef'][image_id][8]*BB+image_info['lineDenCoef'][image_id][9]*HH\
+                        +image_info['lineDenCoef'][image_id][10]*BLH+image_info['lineDenCoef'][image_id][11]*LLL+image_info['lineDenCoef'][image_id][12]*BBL\
+                        +image_info['lineDenCoef'][image_id][13]*HHL+image_info['lineDenCoef'][image_id][14]*LLB+image_info['lineDenCoef'][image_id][15]*BBB\
+                        +image_info['lineDenCoef'][image_id][16]*HHB+image_info['lineDenCoef'][image_id][17]*LLH+image_info['lineDenCoef'][image_id][18]*BBH\
+                        +image_info['lineDenCoef'][image_id][19]*HHH
+                        
+                SNUM=image_info['sampNumCoef'][image_id][0]+image_info['sampNumCoef'][image_id][1]*L+image_info['sampNumCoef'][image_id][2]*B+image_info['sampNumCoef'][image_id][3]*H\
+                        +image_info['sampNumCoef'][image_id][4]*BL+image_info['sampNumCoef'][image_id][5]*LH+image_info['sampNumCoef'][image_id][6]*BH\
+                        +image_info['sampNumCoef'][image_id][7]*LL+image_info['sampNumCoef'][image_id][8]*BB+image_info['sampNumCoef'][image_id][9]*HH\
+                        +image_info['sampNumCoef'][image_id][10]*BLH+image_info['sampNumCoef'][image_id][11]*LLL+image_info['sampNumCoef'][image_id][12]*BBL\
+                        +image_info['sampNumCoef'][image_id][13]*HHL+image_info['sampNumCoef'][image_id][14]*LLB+image_info['sampNumCoef'][image_id][15]*BBB\
+                        +image_info['sampNumCoef'][image_id][16]*HHB+image_info['sampNumCoef'][image_id][17]*LLH+image_info['sampNumCoef'][image_id][18]*BBH\
+                        +image_info['sampNumCoef'][image_id][19]*HHH
+                
+                SDEN=image_info['sampDenCoef'][image_id][0]+image_info['sampDenCoef'][image_id][1]*L+image_info['sampDenCoef'][image_id][2]*B+image_info['sampDenCoef'][image_id][3]*H\
+                        +image_info['sampDenCoef'][image_id][4]*BL+image_info['sampDenCoef'][image_id][5]*LH+image_info['sampDenCoef'][image_id][6]*BH\
+                        +image_info['sampDenCoef'][image_id][7]*LL+image_info['sampDenCoef'][image_id][8]*BB+image_info['sampDenCoef'][image_id][9]*HH\
+                        +image_info['sampDenCoef'][image_id][10]*BLH+image_info['sampDenCoef'][image_id][11]*LLL+image_info['sampDenCoef'][image_id][12]*BBL\
+                        +image_info['sampDenCoef'][image_id][13]*HHL+image_info['sampDenCoef'][image_id][14]*LLB+image_info['sampDenCoef'][image_id][15]*BBB\
+                        +image_info['sampDenCoef'][image_id][16]*HHB+image_info['sampDenCoef'][image_id][17]*LLH+image_info['sampDenCoef'][image_id][18]*BBH\
+                        +image_info['sampDenCoef'][image_id][19]*HHH
+                
+                dLNUMB=image_info['lineNumCoef'][image_id][2]+image_info['lineNumCoef'][image_id][4]*L+image_info['lineNumCoef'][image_id][6]*H+2*image_info['lineNumCoef'][image_id][8]*B+image_info['lineNumCoef'][image_id][10]*LH+2*image_info['lineNumCoef'][image_id][12]*BL+\
+                        image_info['lineNumCoef'][image_id][14]*LL+3*image_info['lineNumCoef'][image_id][15]*BB+image_info['lineNumCoef'][image_id][16]*HH+2*image_info['lineNumCoef'][image_id][18]*BH
+                dLNUML=image_info['lineNumCoef'][image_id][1]+image_info['lineNumCoef'][image_id][4]*B+image_info['lineNumCoef'][image_id][5]*H+2*image_info['lineNumCoef'][image_id][7]*L+image_info['lineNumCoef'][image_id][10]*BH\
+                    +3*image_info['lineNumCoef'][image_id][11]*LL+image_info['lineNumCoef'][image_id][12]*BB+image_info['lineNumCoef'][image_id][13]*HH+2*image_info['lineNumCoef'][image_id][14]*BL+2*image_info['lineNumCoef'][image_id][17]*H*L
+                dLNUMH=image_info['lineNumCoef'][image_id][3]+image_info['lineNumCoef'][image_id][5]*L+image_info['lineNumCoef'][image_id][6]*B+2*image_info['lineNumCoef'][image_id][9]*H\
+                    +image_info['lineNumCoef'][image_id][10]*BL+2*image_info['lineNumCoef'][image_id][13]*L*H+2*image_info['lineNumCoef'][image_id][16]*B*H+image_info['lineNumCoef'][image_id][17]*LL+image_info['lineNumCoef'][image_id][18]*BB+3*image_info['lineNumCoef'][image_id][19]*HH
+
+                dLDENB=image_info['lineDenCoef'][image_id][2]+image_info['lineDenCoef'][image_id][4]*L+image_info['lineDenCoef'][image_id][6]*H+2*image_info['lineDenCoef'][image_id][8]*B+image_info['lineDenCoef'][image_id][10]*LH+2*image_info['lineDenCoef'][image_id][12]*BL+\
+                    image_info['lineDenCoef'][image_id][14]*LL+3*image_info['lineDenCoef'][image_id][15]*BB+image_info['lineDenCoef'][image_id][16]*HH+2*image_info['lineDenCoef'][image_id][18]*BH
+                dLDENL=image_info['lineDenCoef'][image_id][1]+image_info['lineDenCoef'][image_id][4]*B+image_info['lineDenCoef'][image_id][5]*H+2*image_info['lineDenCoef'][image_id][7]*L+image_info['lineDenCoef'][image_id][10]*BH\
+                    +3*image_info['lineDenCoef'][image_id][11]*LL+image_info['lineDenCoef'][image_id][12]*BB+image_info['lineDenCoef'][image_id][13]*HH+2*image_info['lineDenCoef'][image_id][14]*BL+2*image_info['lineDenCoef'][image_id][17]*H*L
+                dLDENH=image_info['lineDenCoef'][image_id][3]+image_info['lineDenCoef'][image_id][5]*L+image_info['lineDenCoef'][image_id][6]*B+2*image_info['lineDenCoef'][image_id][9]*H\
+                    +image_info['lineDenCoef'][image_id][10]*BL+2*image_info['lineDenCoef'][image_id][13]*L*H+2*image_info['lineDenCoef'][image_id][16]*B*H+image_info['lineDenCoef'][image_id][17]*LL+image_info['lineDenCoef'][image_id][18]*BB+3*image_info['lineDenCoef'][image_id][19]*HH
+
+                dSNUMB=image_info['sampNumCoef'][image_id][2]+image_info['sampNumCoef'][image_id][4]*L+image_info['sampNumCoef'][image_id][6]*H+2*image_info['sampNumCoef'][image_id][8]*B+image_info['sampNumCoef'][image_id][10]*LH+2*image_info['sampNumCoef'][image_id][12]*BL+\
+                    image_info['sampNumCoef'][image_id][14]*LL+3*image_info['sampNumCoef'][image_id][15]*BB+image_info['sampNumCoef'][image_id][16]*HH+2*image_info['sampNumCoef'][image_id][18]*BH
+                dSNUML=image_info['sampNumCoef'][image_id][1]+image_info['sampNumCoef'][image_id][4]*B+image_info['sampNumCoef'][image_id][5]*H+2*image_info['sampNumCoef'][image_id][7]*L+image_info['sampNumCoef'][image_id][10]*BH\
+                    +3*image_info['sampNumCoef'][image_id][11]*LL+image_info['sampNumCoef'][image_id][12]*BB+image_info['sampNumCoef'][image_id][13]*HH+2*image_info['sampNumCoef'][image_id][14]*BL+2*image_info['sampNumCoef'][image_id][17]*H*L
+                dSNUMH=image_info['sampNumCoef'][image_id][3]+image_info['sampNumCoef'][image_id][5]*L+image_info['sampNumCoef'][image_id][6]*B+2*image_info['sampNumCoef'][image_id][9]*H\
+                    +image_info['sampNumCoef'][image_id][10]*BL+2*image_info['sampNumCoef'][image_id][13]*L*H+2*image_info['sampNumCoef'][image_id][16]*B*H+image_info['sampNumCoef'][image_id][17]*LL+image_info['sampNumCoef'][image_id][18]*BB+3*image_info['sampNumCoef'][image_id][19]*HH
+
+                dSDENB=image_info['sampDenCoef'][image_id][2]+image_info['sampDenCoef'][image_id][4]*L+image_info['sampDenCoef'][image_id][6]*H+2*image_info['sampDenCoef'][image_id][8]*B+image_info['sampDenCoef'][image_id][10]*LH+2*image_info['sampDenCoef'][image_id][12]*BL+\
+                    image_info['sampDenCoef'][image_id][14]*LL+3*image_info['sampDenCoef'][image_id][15]*BB+image_info['sampDenCoef'][image_id][16]*HH+2*image_info['sampDenCoef'][image_id][18]*BH
+                dSDENL=image_info['sampDenCoef'][image_id][1]+image_info['sampDenCoef'][image_id][4]*B+image_info['sampDenCoef'][image_id][5]*H+2*image_info['sampDenCoef'][image_id][7]*L+image_info['sampDenCoef'][image_id][10]*BH\
+                    +3*image_info['sampDenCoef'][image_id][11]*LL+image_info['sampDenCoef'][image_id][12]*BB+image_info['sampDenCoef'][image_id][13]*HH+2*image_info['sampDenCoef'][image_id][14]*BL+2*image_info['sampDenCoef'][image_id][17]*H*L
+                dSDENH=image_info['sampDenCoef'][image_id][3]+image_info['sampDenCoef'][image_id][5]*L+image_info['sampDenCoef'][image_id][6]*B+2*image_info['sampDenCoef'][image_id][9]*H\
+                    +image_info['sampDenCoef'][image_id][10]*BL+2*image_info['sampDenCoef'][image_id][13]*L*H+2*image_info['sampDenCoef'][image_id][16]*B*H+image_info['sampDenCoef'][image_id][17]*LL+image_info['sampDenCoef'][image_id][18]*BB+3*image_info['sampDenCoef'][image_id][19]*HH
+
+                dLB=(dLNUMB*LDEN-LNUM*dLDENB)/(LDEN*LDEN)
+                dLL=(dLNUML*LDEN-LNUM*dLDENL)/(LDEN*LDEN)
+                dLH=(dLNUMH*LDEN-LNUM*dLDENH)/(LDEN*LDEN)
+
+                dSB=(dSNUMB*SDEN-SNUM*dSDENB)/(SDEN*SDEN)
+                dSL=(dSNUML*SDEN-SNUM*dSDENL)/(SDEN*SDEN)
+                dSH=(dSNUMH*SDEN-SNUM*dSDENH)/(SDEN*SDEN)
+
+                dLlat=dLB/image_info['latScale'][image_id];dLlon=dLL/image_info['longScale'][image_id];dLhei=dLH/image_info['heightScale'][image_id]
+                dSlat=dSB/image_info['latScale'][image_id];dSlon=dSL/image_info['longScale'][image_id];dShei=dSH/image_info['heightScale'][image_id]
+
+                l=np.asarray(tiept_info['imgpt_x'][idx])
+                s=np.asarray(tiept_info['imgpt_y'][idx])
+
+                A=np.asarray([[dLlon*image_info['lineScale'][image_id],dLlat*image_info['lineScale'][image_id]],\
+                                                                [dSlon*image_info['sampScale'][image_id],dSlat*image_info['sampScale'][image_id]]])
+                fl_0=(LNUM/LDEN)*image_info['lineScale'][image_id]+image_info['lineOffset'][image_id]
+                fs_0=(SNUM/SDEN)*image_info['sampScale'][image_id]+image_info['sampOffset'][image_id]
+                                
+                f[0]=l-fl_0
+                f[1]=s-fs_0
+                f=f
+
+                coeff=A.T@P@A
+                Q_xx=np.linalg.inv(coeff)
+                adj_esti=Q_xx@A.T@P@f
+
+                X=adj_esti
+
+                iter_count+=1
+
+                lon+=X[0]
+                lat+=X[1]
+
+                if np.fabs(np.max(adj_esti))<=eps or iter_count>=max_iter:
+                    flag=False
+
+        tiept_info['objpt_x'][idx]=lon
+        tiept_info['objpt_y'][idx]=lat
+        tiept_info['objpt_z'][idx]=hei
+
+def forward_intersec_multiple_points(obj_name):
     max_iter=100
     eps=1e-5
     indices=np.where(tiept_info['object_name']==obj_name)[0]
 
-    if intersec_type=='single_point':
-        for idx in indices:
+    flag=True
+    tiept_num=len(indices)
+    image_id=tiept_info['img_id'][indices].astype('int')
+
+    X=np.zeros((3*tiept_num))
+    A=np.zeros((2*tiept_num,3))
+    f=np.zeros((2*tiept_num))
+    P=np.eye(2*tiept_num)
+
+    iter_count=0
+
+    lon=tiept_info['objpt_x'][indices].astype('float32')
+    lat=tiept_info['objpt_y'][indices].astype('float32')
+    hei=tiept_info['objpt_z'][indices].astype('float32')
+
+    while flag:
+        tqdm.write(f'forward intersection(multiple points): the {iter_count+1}th iteration of tiepoint {obj_name}')
         
-            flag=True
-            
-            image_id=tiept_info['img_id'][idx].astype('int')
+        L=(lon-image_info['longOffset'][image_id])/image_info['longScale'][image_id]
+        B=(lat-image_info['latOffset'][image_id])/image_info['latScale'][image_id]
+        H=(hei-image_info['heightOffset'][image_id])/image_info['heightScale'][image_id]
 
-            if image_id in image_info['ImageID']:
-
-                X=np.zeros((3))
-                A=np.zeros((2,2))
-                f=np.zeros((2))
-                P=np.eye(2)
-
-                iter_count=0
-
-                lon=image_info['longOffset'][image_id]
-                lat=image_info['latOffset'][image_id]
-                hei=image_info['heightOffset'][image_id]
-
-                while flag:
-                    tqdm.write(f'the {iter_count+1}th iteration of tiepoint {obj_name}')
-                    
-                    L=(lon-image_info['longOffset'][image_id])/image_info['longScale'][image_id]
-                    B=(lat-image_info['latOffset'][image_id])/image_info['latScale'][image_id]
-                    H=(hei-image_info['heightOffset'][image_id])/image_info['heightScale'][image_id]
-
-                    BL=B*L;BH=B*H;LH=L*H;BB=B*B;LL=L*L;HH=H*H;BLH=B*L*H;BBL=B*B*L;BBH=B*B*H;LLB=L*L*B;LLH=L*L*H;HHB=H*H*B;HHL=H*H*L;BBB=B*B*B;LLL=L*L*L;HHH=H*H*H
-                    LNUM=image_info['lineNumCoef'][image_id][0]+image_info['lineNumCoef'][image_id][1]*L+image_info['lineNumCoef'][image_id][2]*B+image_info['lineNumCoef'][image_id][3]*H\
-                        +image_info['lineNumCoef'][image_id][4]*BL+image_info['lineNumCoef'][image_id][5]*LH+image_info['lineNumCoef'][image_id][6]*BH\
-                        +image_info['lineNumCoef'][image_id][7]*LL+image_info['lineNumCoef'][image_id][8]*BB+image_info['lineNumCoef'][image_id][9]*HH\
-                        +image_info['lineNumCoef'][image_id][10]*BLH+image_info['lineNumCoef'][image_id][11]*LLL+image_info['lineNumCoef'][image_id][12]*BBL\
-                        +image_info['lineNumCoef'][image_id][13]*HHL+image_info['lineNumCoef'][image_id][14]*LLB+image_info['lineNumCoef'][image_id][15]*BBB\
-                        +image_info['lineNumCoef'][image_id][16]*HHB+image_info['lineNumCoef'][image_id][17]*LLH+image_info['lineNumCoef'][image_id][18]*BBH\
-                        +image_info['lineNumCoef'][image_id][19]*HHH
+        BL=B*L;BH=B*H;LH=L*H;BB=B*B;LL=L*L;HH=H*H;BLH=B*L*H;BBL=B*B*L;BBH=B*B*H;LLB=L*L*B;LLH=L*L*H;HHB=H*H*B;HHL=H*H*L;BBB=B*B*B;LLL=L*L*L;HHH=H*H*H
+        LNUM=image_info['lineNumCoef'][image_id][:,0]+image_info['lineNumCoef'][image_id][:,1]*L+image_info['lineNumCoef'][image_id][:,2]*B+image_info['lineNumCoef'][image_id][:,3]*H\
+                        +image_info['lineNumCoef'][image_id][:,4]*BL+image_info['lineNumCoef'][image_id][:,5]*LH+image_info['lineNumCoef'][image_id][:,6]*BH\
+                        +image_info['lineNumCoef'][image_id][:,7]*LL+image_info['lineNumCoef'][image_id][:,8]*BB+image_info['lineNumCoef'][image_id][:,9]*HH\
+                        +image_info['lineNumCoef'][image_id][:,10]*BLH+image_info['lineNumCoef'][image_id][:,11]*LLL+image_info['lineNumCoef'][image_id][:,12]*BBL\
+                        +image_info['lineNumCoef'][image_id][:,13]*HHL+image_info['lineNumCoef'][image_id][:,14]*LLB+image_info['lineNumCoef'][image_id][:,15]*BBB\
+                        +image_info['lineNumCoef'][image_id][:,16]*HHB+image_info['lineNumCoef'][image_id][:,17]*LLH+image_info['lineNumCoef'][image_id][:,18]*BBH\
+                        +image_info['lineNumCoef'][image_id][:,19]*HHH
                 
-                    LDEN=image_info['lineDenCoef'][image_id][0]+image_info['lineDenCoef'][image_id][1]*L+image_info['lineDenCoef'][image_id][2]*B+image_info['lineDenCoef'][image_id][3]*H\
-                            +image_info['lineDenCoef'][image_id][4]*BL+image_info['lineDenCoef'][image_id][5]*LH+image_info['lineDenCoef'][image_id][6]*BH\
-                            +image_info['lineDenCoef'][image_id][7]*LL+image_info['lineDenCoef'][image_id][8]*BB+image_info['lineDenCoef'][image_id][9]*HH\
-                            +image_info['lineDenCoef'][image_id][10]*BLH+image_info['lineDenCoef'][image_id][11]*LLL+image_info['lineDenCoef'][image_id][12]*BBL\
-                            +image_info['lineDenCoef'][image_id][13]*HHL+image_info['lineDenCoef'][image_id][14]*LLB+image_info['lineDenCoef'][image_id][15]*BBB\
-                            +image_info['lineDenCoef'][image_id][16]*HHB+image_info['lineDenCoef'][image_id][17]*LLH+image_info['lineDenCoef'][image_id][18]*BBH\
-                            +image_info['lineDenCoef'][image_id][19]*HHH
+        LDEN=image_info['lineDenCoef'][image_id][:,0]+image_info['lineDenCoef'][image_id][:,1]*L+image_info['lineDenCoef'][image_id][:,2]*B+image_info['lineDenCoef'][image_id][:,3]*H\
+                +image_info['lineDenCoef'][image_id][:,4]*BL+image_info['lineDenCoef'][image_id][:,5]*LH+image_info['lineDenCoef'][image_id][:,6]*BH\
+                +image_info['lineDenCoef'][image_id][:,7]*LL+image_info['lineDenCoef'][image_id][:,8]*BB+image_info['lineDenCoef'][image_id][:,9]*HH\
+                +image_info['lineDenCoef'][image_id][:,10]*BLH+image_info['lineDenCoef'][image_id][:,11]*LLL+image_info['lineDenCoef'][image_id][:,12]*BBL\
+                +image_info['lineDenCoef'][image_id][:,13]*HHL+image_info['lineDenCoef'][image_id][:,14]*LLB+image_info['lineDenCoef'][image_id][:,15]*BBB\
+                +image_info['lineDenCoef'][image_id][:,16]*HHB+image_info['lineDenCoef'][image_id][:,17]*LLH+image_info['lineDenCoef'][image_id][:,18]*BBH\
+                +image_info['lineDenCoef'][image_id][:,19]*HHH
+                
+        SNUM=image_info['sampNumCoef'][image_id][:,0]+image_info['sampNumCoef'][image_id][:,1]*L+image_info['sampNumCoef'][image_id][:,2]*B+image_info['sampNumCoef'][image_id][:,3]*H\
+                +image_info['sampNumCoef'][image_id][:,4]*BL+image_info['sampNumCoef'][image_id][:,5]*LH+image_info['sampNumCoef'][image_id][:,6]*BH\
+                +image_info['sampNumCoef'][image_id][:,7]*LL+image_info['sampNumCoef'][image_id][:,8]*BB+image_info['sampNumCoef'][image_id][:,9]*HH\
+                +image_info['sampNumCoef'][image_id][:,10]*BLH+image_info['sampNumCoef'][image_id][:,11]*LLL+image_info['sampNumCoef'][image_id][:,12]*BBL\
+                +image_info['sampNumCoef'][image_id][:,13]*HHL+image_info['sampNumCoef'][image_id][:,14]*LLB+image_info['sampNumCoef'][image_id][:,15]*BBB\
+                +image_info['sampNumCoef'][image_id][:,16]*HHB+image_info['sampNumCoef'][image_id][:,17]*LLH+image_info['sampNumCoef'][image_id][:,18]*BBH\
+                +image_info['sampNumCoef'][image_id][:,19]*HHH
+        
+        SDEN=image_info['sampDenCoef'][image_id][:,0]+image_info['sampDenCoef'][image_id][:,1]*L+image_info['sampDenCoef'][image_id][:,2]*B+image_info['sampDenCoef'][image_id][:,3]*H\
+                +image_info['sampDenCoef'][image_id][:,4]*BL+image_info['sampDenCoef'][image_id][:,5]*LH+image_info['sampDenCoef'][image_id][:,6]*BH\
+                +image_info['sampDenCoef'][image_id][:,7]*LL+image_info['sampDenCoef'][image_id][:,8]*BB+image_info['sampDenCoef'][image_id][:,9]*HH\
+                +image_info['sampDenCoef'][image_id][:,10]*BLH+image_info['sampDenCoef'][image_id][:,11]*LLL+image_info['sampDenCoef'][image_id][:,12]*BBL\
+                +image_info['sampDenCoef'][image_id][:,13]*HHL+image_info['sampDenCoef'][image_id][:,14]*LLB+image_info['sampDenCoef'][image_id][:,15]*BBB\
+                +image_info['sampDenCoef'][image_id][:,16]*HHB+image_info['sampDenCoef'][image_id][:,17]*LLH+image_info['sampDenCoef'][image_id][:,18]*BBH\
+                +image_info['sampDenCoef'][image_id][:,19]*HHH
+        
+        dLNUMB=image_info['lineNumCoef'][image_id][:,2]+image_info['lineNumCoef'][image_id][:,4]*L+image_info['lineNumCoef'][image_id][:,6]*H+2*image_info['lineNumCoef'][image_id][:,8]*B+image_info['lineNumCoef'][image_id][:,10]*LH+2*image_info['lineNumCoef'][image_id][:,12]*BL+\
+            image_info['lineNumCoef'][image_id][:,14]*LL+3*image_info['lineNumCoef'][image_id][:,15]*BB+image_info['lineNumCoef'][image_id][:,16]*HH+2*image_info['lineNumCoef'][image_id][:,18]*BH
+        dLNUML=image_info['lineNumCoef'][image_id][:,1]+image_info['lineNumCoef'][image_id][:,4]*B+image_info['lineNumCoef'][image_id][:,5]*H+2*image_info['lineNumCoef'][image_id][:,7]*L+image_info['lineNumCoef'][image_id][:,10]*BH\
+            +3*image_info['lineNumCoef'][image_id][:,11]*LL+image_info['lineNumCoef'][image_id][:,12]*BB+image_info['lineNumCoef'][image_id][:,13]*HH+2*image_info['lineNumCoef'][image_id][:,14]*BL+2*image_info['lineNumCoef'][image_id][:,17]*H*L
+        dLNUMH=image_info['lineNumCoef'][image_id][:,3]+image_info['lineNumCoef'][image_id][:,5]*L+image_info['lineNumCoef'][image_id][:,6]*B+2*image_info['lineNumCoef'][image_id][:,9]*H\
+            +image_info['lineNumCoef'][image_id][:,10]*BL+2*image_info['lineNumCoef'][image_id][:,13]*L*H+2*image_info['lineNumCoef'][image_id][:,16]*B*H+image_info['lineNumCoef'][image_id][:,17]*LL+image_info['lineNumCoef'][image_id][:,18]*BB+3*image_info['lineNumCoef'][image_id][:,19]*HH
+
+        dLDENB=image_info['lineDenCoef'][image_id][:,2]+image_info['lineDenCoef'][image_id][:,4]*L+image_info['lineDenCoef'][image_id][:,6]*H+2*image_info['lineDenCoef'][image_id][:,8]*B+image_info['lineDenCoef'][image_id][:,10]*LH+2*image_info['lineDenCoef'][image_id][:,12]*BL+\
+            image_info['lineDenCoef'][image_id][:,14]*LL+3*image_info['lineDenCoef'][image_id][:,15]*BB+image_info['lineDenCoef'][image_id][:,16]*HH+2*image_info['lineDenCoef'][image_id][:,18]*BH
+        dLDENL=image_info['lineDenCoef'][image_id][:,1]+image_info['lineDenCoef'][image_id][:,4]*B+image_info['lineDenCoef'][image_id][:,5]*H+2*image_info['lineDenCoef'][image_id][:,7]*L+image_info['lineDenCoef'][image_id][:,10]*BH\
+            +3*image_info['lineDenCoef'][image_id][:,11]*LL+image_info['lineDenCoef'][image_id][:,12]*BB+image_info['lineDenCoef'][image_id][:,13]*HH+2*image_info['lineDenCoef'][image_id][:,14]*BL+2*image_info['lineDenCoef'][image_id][:,17]*H*L
+        dLDENH=image_info['lineDenCoef'][image_id][:,3]+image_info['lineDenCoef'][image_id][:,5]*L+image_info['lineDenCoef'][image_id][:,6]*B+2*image_info['lineDenCoef'][image_id][:,9]*H\
+            +image_info['lineDenCoef'][image_id][:,10]*BL+2*image_info['lineDenCoef'][image_id][:,13]*L*H+2*image_info['lineDenCoef'][image_id][:,16]*B*H+image_info['lineDenCoef'][image_id][:,17]*LL+image_info['lineDenCoef'][image_id][:,18]*BB+3*image_info['lineDenCoef'][image_id][:,19]*HH
+
+        dSNUMB=image_info['sampNumCoef'][image_id][:,2]+image_info['sampNumCoef'][image_id][:,4]*L+image_info['sampNumCoef'][image_id][:,6]*H+2*image_info['sampNumCoef'][image_id][:,8]*B+image_info['sampNumCoef'][image_id][:,10]*LH+2*image_info['sampNumCoef'][image_id][:,12]*BL+\
+            image_info['sampNumCoef'][image_id][:,14]*LL+3*image_info['sampNumCoef'][image_id][:,15]*BB+image_info['sampNumCoef'][image_id][:,16]*HH+2*image_info['sampNumCoef'][image_id][:,18]*BH
+        dSNUML=image_info['sampNumCoef'][image_id][:,1]+image_info['sampNumCoef'][image_id][:,4]*B+image_info['sampNumCoef'][image_id][:,5]*H+2*image_info['sampNumCoef'][image_id][:,7]*L+image_info['sampNumCoef'][image_id][:,10]*BH\
+            +3*image_info['sampNumCoef'][image_id][:,11]*LL+image_info['sampNumCoef'][image_id][:,12]*BB+image_info['sampNumCoef'][image_id][:,13]*HH+2*image_info['sampNumCoef'][image_id][:,14]*BL+2*image_info['sampNumCoef'][image_id][:,17]*H*L
+        dSNUMH=image_info['sampNumCoef'][image_id][:,3]+image_info['sampNumCoef'][image_id][:,5]*L+image_info['sampNumCoef'][image_id][:,6]*B+2*image_info['sampNumCoef'][image_id][:,9]*H\
+            +image_info['sampNumCoef'][image_id][:,10]*BL+2*image_info['sampNumCoef'][image_id][:,13]*L*H+2*image_info['sampNumCoef'][image_id][:,16]*B*H+image_info['sampNumCoef'][image_id][:,17]*LL+image_info['sampNumCoef'][image_id][:,18]*BB+3*image_info['sampNumCoef'][image_id][:,19]*HH
+
+        dSDENB=image_info['sampDenCoef'][image_id][:,2]+image_info['sampDenCoef'][image_id][:,4]*L+image_info['sampDenCoef'][image_id][:,6]*H+2*image_info['sampDenCoef'][image_id][:,8]*B+image_info['sampDenCoef'][image_id][:,10]*LH+2*image_info['sampDenCoef'][image_id][:,12]*BL+\
+            image_info['sampDenCoef'][image_id][:,14]*LL+3*image_info['sampDenCoef'][image_id][:,15]*BB+image_info['sampDenCoef'][image_id][:,16]*HH+2*image_info['sampDenCoef'][image_id][:,18]*BH
+        dSDENL=image_info['sampDenCoef'][image_id][:,1]+image_info['sampDenCoef'][image_id][:,4]*B+image_info['sampDenCoef'][image_id][:,5]*H+2*image_info['sampDenCoef'][image_id][:,7]*L+image_info['sampDenCoef'][image_id][:,10]*BH\
+            +3*image_info['sampDenCoef'][image_id][:,11]*LL+image_info['sampDenCoef'][image_id][:,12]*BB+image_info['sampDenCoef'][image_id][:,13]*HH+2*image_info['sampDenCoef'][image_id][:,14]*BL+2*image_info['sampDenCoef'][image_id][:,17]*H*L
+        dSDENH=image_info['sampDenCoef'][image_id][:,3]+image_info['sampDenCoef'][image_id][:,5]*L+image_info['sampDenCoef'][image_id][:,6]*B+2*image_info['sampDenCoef'][image_id][:,9]*H\
+            +image_info['sampDenCoef'][image_id][:,10]*BL+2*image_info['sampDenCoef'][image_id][:,13]*L*H+2*image_info['sampDenCoef'][image_id][:,16]*B*H+image_info['sampDenCoef'][image_id][:,17]*LL+image_info['sampDenCoef'][image_id][:,18]*BB+3*image_info['sampDenCoef'][image_id][:,19]*HH
+
+        dLB=(dLNUMB*LDEN-LNUM*dLDENB)/(LDEN*LDEN)
+        dLL=(dLNUML*LDEN-LNUM*dLDENL)/(LDEN*LDEN)
+        dLH=(dLNUMH*LDEN-LNUM*dLDENH)/(LDEN*LDEN)
+
+        dSB=(dSNUMB*SDEN-SNUM*dSDENB)/(SDEN*SDEN)
+        dSL=(dSNUML*SDEN-SNUM*dSDENL)/(SDEN*SDEN)
+        dSH=(dSNUMH*SDEN-SNUM*dSDENH)/(SDEN*SDEN)
+
+        dLlat=dLB/image_info['latScale'][image_id];dLlon=dLL/image_info['longScale'][image_id];dLhei=dLH/image_info['heightScale'][image_id]
+        dSlat=dSB/image_info['latScale'][image_id];dSlon=dSL/image_info['longScale'][image_id];dShei=dSH/image_info['heightScale'][image_id]
+
+        l=np.asarray(tiept_info['imgpt_x'][indices])
+        s=np.asarray(tiept_info['imgpt_y'][indices])
+
+        for i in range(tiept_num):
+            A[i*2:(i+1)*2,:]=np.asarray([[dLlon.values[i]*image_info['lineScale'][image_id][i],dLlat.values[i]*image_info['lineScale'][image_id][i],dLhei.values[i]*image_info['lineScale'][image_id][i]],\
+                                                            [dSlon.values[i]*image_info['sampScale'][image_id][i],dSlat.values[i]*image_info['sampScale'][image_id][i],dShei.values[i]*image_info['sampScale'][image_id][i]]])
+            fl_0=(LNUM.values[i]/LDEN.values[i])*image_info['lineScale'][i]+image_info['lineOffset'][i]
+            fs_0=(SNUM.values[i]/SDEN.values[i])*image_info['sampScale'][i]+image_info['sampOffset'][i]
                             
-                    SNUM=image_info['sampNumCoef'][image_id][0]+image_info['sampNumCoef'][image_id][1]*L+image_info['sampNumCoef'][image_id][2]*B+image_info['sampNumCoef'][image_id][3]*H\
-                            +image_info['sampNumCoef'][image_id][4]*BL+image_info['sampNumCoef'][image_id][5]*LH+image_info['sampNumCoef'][image_id][6]*BH\
-                            +image_info['sampNumCoef'][image_id][7]*LL+image_info['sampNumCoef'][image_id][8]*BB+image_info['sampNumCoef'][image_id][9]*HH\
-                            +image_info['sampNumCoef'][image_id][10]*BLH+image_info['sampNumCoef'][image_id][11]*LLL+image_info['sampNumCoef'][image_id][12]*BBL\
-                            +image_info['sampNumCoef'][image_id][13]*HHL+image_info['sampNumCoef'][image_id][14]*LLB+image_info['sampNumCoef'][image_id][15]*BBB\
-                            +image_info['sampNumCoef'][image_id][16]*HHB+image_info['sampNumCoef'][image_id][17]*LLH+image_info['sampNumCoef'][image_id][18]*BBH\
-                            +image_info['sampNumCoef'][image_id][19]*HHH
-                    
-                    SDEN=image_info['sampDenCoef'][image_id][0]+image_info['sampDenCoef'][image_id][1]*L+image_info['sampDenCoef'][image_id][2]*B+image_info['sampDenCoef'][image_id][3]*H\
-                            +image_info['sampDenCoef'][image_id][4]*BL+image_info['sampDenCoef'][image_id][5]*LH+image_info['sampDenCoef'][image_id][6]*BH\
-                            +image_info['sampDenCoef'][image_id][7]*LL+image_info['sampDenCoef'][image_id][8]*BB+image_info['sampDenCoef'][image_id][9]*HH\
-                            +image_info['sampDenCoef'][image_id][10]*BLH+image_info['sampDenCoef'][image_id][11]*LLL+image_info['sampDenCoef'][image_id][12]*BBL\
-                            +image_info['sampDenCoef'][image_id][13]*HHL+image_info['sampDenCoef'][image_id][14]*LLB+image_info['sampDenCoef'][image_id][15]*BBB\
-                            +image_info['sampDenCoef'][image_id][16]*HHB+image_info['sampDenCoef'][image_id][17]*LLH+image_info['sampDenCoef'][image_id][18]*BBH\
-                            +image_info['sampDenCoef'][image_id][19]*HHH
-                    
-                    dLNUMB=image_info['lineNumCoef'][image_id][2]+image_info['lineNumCoef'][image_id][4]*L+image_info['lineNumCoef'][image_id][6]*H+2*image_info['lineNumCoef'][image_id][8]*B+image_info['lineNumCoef'][image_id][10]*LH+2*image_info['lineNumCoef'][image_id][12]*BL+\
-                            image_info['lineNumCoef'][image_id][14]*LL+3*image_info['lineNumCoef'][image_id][15]*BB+image_info['lineNumCoef'][image_id][16]*HH+2*image_info['lineNumCoef'][image_id][18]*BH
-                    dLNUML=image_info['lineNumCoef'][image_id][1]+image_info['lineNumCoef'][image_id][4]*B+image_info['lineNumCoef'][image_id][5]*H+2*image_info['lineNumCoef'][image_id][7]*L+image_info['lineNumCoef'][image_id][10]*BH\
-                        +3*image_info['lineNumCoef'][image_id][11]*LL+image_info['lineNumCoef'][image_id][12]*BB+image_info['lineNumCoef'][image_id][13]*HH+2*image_info['lineNumCoef'][image_id][14]*BL+2*image_info['lineNumCoef'][image_id][17]*H*L
-                    dLNUMH=image_info['lineNumCoef'][image_id][3]+image_info['lineNumCoef'][image_id][5]*L+image_info['lineNumCoef'][image_id][6]*B+2*image_info['lineNumCoef'][image_id][9]*H\
-                        +image_info['lineNumCoef'][image_id][10]*BL+2*image_info['lineNumCoef'][image_id][13]*L*H+2*image_info['lineNumCoef'][image_id][16]*B*H+image_info['lineNumCoef'][image_id][17]*LL+image_info['lineNumCoef'][image_id][18]*BB+3*image_info['lineNumCoef'][image_id][19]*HH
+            f[i*2]=l[i]-fl_0
+            f[i*2+1]=s[i]-fs_0
+            f=f
 
-                    dLDENB=image_info['lineDenCoef'][image_id][2]+image_info['lineDenCoef'][image_id][4]*L+image_info['lineDenCoef'][image_id][6]*H+2*image_info['lineDenCoef'][image_id][8]*B+image_info['lineDenCoef'][image_id][10]*LH+2*image_info['lineDenCoef'][image_id][12]*BL+\
-                        image_info['lineDenCoef'][image_id][14]*LL+3*image_info['lineDenCoef'][image_id][15]*BB+image_info['lineDenCoef'][image_id][16]*HH+2*image_info['lineDenCoef'][image_id][18]*BH
-                    dLDENL=image_info['lineDenCoef'][image_id][1]+image_info['lineDenCoef'][image_id][4]*B+image_info['lineDenCoef'][image_id][5]*H+2*image_info['lineDenCoef'][image_id][7]*L+image_info['lineDenCoef'][image_id][10]*BH\
-                        +3*image_info['lineDenCoef'][image_id][11]*LL+image_info['lineDenCoef'][image_id][12]*BB+image_info['lineDenCoef'][image_id][13]*HH+2*image_info['lineDenCoef'][image_id][14]*BL+2*image_info['lineDenCoef'][image_id][17]*H*L
-                    dLDENH=image_info['lineDenCoef'][image_id][3]+image_info['lineDenCoef'][image_id][5]*L+image_info['lineDenCoef'][image_id][6]*B+2*image_info['lineDenCoef'][image_id][9]*H\
-                        +image_info['lineDenCoef'][image_id][10]*BL+2*image_info['lineDenCoef'][image_id][13]*L*H+2*image_info['lineDenCoef'][image_id][16]*B*H+image_info['lineDenCoef'][image_id][17]*LL+image_info['lineDenCoef'][image_id][18]*BB+3*image_info['lineDenCoef'][image_id][19]*HH
+        coeff=A.T@P@A
+        Q_xx=np.linalg.inv(coeff)
+        adj_esti=Q_xx@A.T@P@f
 
-                    dSNUMB=image_info['sampNumCoef'][image_id][2]+image_info['sampNumCoef'][image_id][4]*L+image_info['sampNumCoef'][image_id][6]*H+2*image_info['sampNumCoef'][image_id][8]*B+image_info['sampNumCoef'][image_id][10]*LH+2*image_info['sampNumCoef'][image_id][12]*BL+\
-                        image_info['sampNumCoef'][image_id][14]*LL+3*image_info['sampNumCoef'][image_id][15]*BB+image_info['sampNumCoef'][image_id][16]*HH+2*image_info['sampNumCoef'][image_id][18]*BH
-                    dSNUML=image_info['sampNumCoef'][image_id][1]+image_info['sampNumCoef'][image_id][4]*B+image_info['sampNumCoef'][image_id][5]*H+2*image_info['sampNumCoef'][image_id][7]*L+image_info['sampNumCoef'][image_id][10]*BH\
-                        +3*image_info['sampNumCoef'][image_id][11]*LL+image_info['sampNumCoef'][image_id][12]*BB+image_info['sampNumCoef'][image_id][13]*HH+2*image_info['sampNumCoef'][image_id][14]*BL+2*image_info['sampNumCoef'][image_id][17]*H*L
-                    dSNUMH=image_info['sampNumCoef'][image_id][3]+image_info['sampNumCoef'][image_id][5]*L+image_info['sampNumCoef'][image_id][6]*B+2*image_info['sampNumCoef'][image_id][9]*H\
-                        +image_info['sampNumCoef'][image_id][10]*BL+2*image_info['sampNumCoef'][image_id][13]*L*H+2*image_info['sampNumCoef'][image_id][16]*B*H+image_info['sampNumCoef'][image_id][17]*LL+image_info['sampNumCoef'][image_id][18]*BB+3*image_info['sampNumCoef'][image_id][19]*HH
+        X=adj_esti
 
-                    dSDENB=image_info['sampDenCoef'][image_id][2]+image_info['sampDenCoef'][image_id][4]*L+image_info['sampDenCoef'][image_id][6]*H+2*image_info['sampDenCoef'][image_id][8]*B+image_info['sampDenCoef'][image_id][10]*LH+2*image_info['sampDenCoef'][image_id][12]*BL+\
-                        image_info['sampDenCoef'][image_id][14]*LL+3*image_info['sampDenCoef'][image_id][15]*BB+image_info['sampDenCoef'][image_id][16]*HH+2*image_info['sampDenCoef'][image_id][18]*BH
-                    dSDENL=image_info['sampDenCoef'][image_id][1]+image_info['sampDenCoef'][image_id][4]*B+image_info['sampDenCoef'][image_id][5]*H+2*image_info['sampDenCoef'][image_id][7]*L+image_info['sampDenCoef'][image_id][10]*BH\
-                        +3*image_info['sampDenCoef'][image_id][11]*LL+image_info['sampDenCoef'][image_id][12]*BB+image_info['sampDenCoef'][image_id][13]*HH+2*image_info['sampDenCoef'][image_id][14]*BL+2*image_info['sampDenCoef'][image_id][17]*H*L
-                    dSDENH=image_info['sampDenCoef'][image_id][3]+image_info['sampDenCoef'][image_id][5]*L+image_info['sampDenCoef'][image_id][6]*B+2*image_info['sampDenCoef'][image_id][9]*H\
-                        +image_info['sampDenCoef'][image_id][10]*BL+2*image_info['sampDenCoef'][image_id][13]*L*H+2*image_info['sampDenCoef'][image_id][16]*B*H+image_info['sampDenCoef'][image_id][17]*LL+image_info['sampDenCoef'][image_id][18]*BB+3*image_info['sampDenCoef'][image_id][19]*HH
+        iter_count+=1
 
-                    dLB=(dLNUMB*LDEN-LNUM*dLDENB)/(LDEN*LDEN)
-                    dLL=(dLNUML*LDEN-LNUM*dLDENL)/(LDEN*LDEN)
-                    dLH=(dLNUMH*LDEN-LNUM*dLDENH)/(LDEN*LDEN)
+        lon+=X[0]
+        lat+=X[1]
+        hei+=X[2]
 
-                    dSB=(dSNUMB*SDEN-SNUM*dSDENB)/(SDEN*SDEN)
-                    dSL=(dSNUML*SDEN-SNUM*dSDENL)/(SDEN*SDEN)
-                    dSH=(dSNUMH*SDEN-SNUM*dSDENH)/(SDEN*SDEN)
+        if np.fabs(np.max(adj_esti))<=eps or iter_count>=max_iter:
+            flag=False
 
-                    dLlat=dLB/image_info['latScale'][image_id];dLlon=dLL/image_info['longScale'][image_id];dLhei=dLH/image_info['heightScale'][image_id]
-                    dSlat=dSB/image_info['latScale'][image_id];dSlon=dSL/image_info['longScale'][image_id];dShei=dSH/image_info['heightScale'][image_id]
-
-                    l=np.asarray(tiept_info['imgpt_x'][idx])
-                    s=np.asarray(tiept_info['imgpt_y'][idx])
-
-                    A=np.asarray([[dLlon*image_info['lineScale'][image_id],dLlat*image_info['lineScale'][image_id]],\
-                                                                    [dSlon*image_info['sampScale'][image_id],dSlat*image_info['sampScale'][image_id]]])
-                    fl_0=(LNUM/LDEN)*image_info['lineScale'][image_id]+image_info['lineOffset'][image_id]
-                    fs_0=(SNUM/SDEN)*image_info['sampScale'][image_id]+image_info['sampOffset'][image_id]
-                                    
-                    f[0]=l-fl_0
-                    f[1]=s-fs_0
-                    f=f
-
-                    coeff=A.T@P@A
-                    Q_xx=np.linalg.inv(coeff)
-                    adj_esti=Q_xx@A.T@P@f
-
-                    X=adj_esti
-
-                    iter_count+=1
-
-                    x_length=len(X)
-                    lon+=X[0]
-                    lat+=X[1]
-
-                    if np.fabs(np.max(adj_esti))<=eps or iter_count>=max_iter:
-                        flag=False
-
-                tiept_info['objpt_x'][idx]=lon
-                tiept_info['objpt_y'][idx]=lat
-                tiept_info['objpt_z'][idx]=hei
-
-    elif intersec_type=='multiple_points':
-        flag=True
-        tiept_num=len(indices)
-        image_id=tiept_info['img_id'][indices].astype('int')
-
-        X=np.zeros((3*tiept_num))
-        A=np.zeros((2*tiept_num,3))
-        f=np.zeros((2*tiept_num))
-        P=np.eye(2*tiept_num)
-
-        iter_count=0
-
-        lon=tiept_info['objpt_x'][indices].astype('float32')
-        lat=tiept_info['objpt_y'][indices].astype('float32')
-        hei=tiept_info['objpt_z'][indices].astype('float32')
-
-        while flag:
-            tqdm.write(f'the {iter_count+1}th iteration of tiepoint {obj_name}')
-            
-            L=(lon-image_info['longOffset'][image_id])/image_info['longScale'][image_id]
-            B=(lat-image_info['latOffset'][image_id])/image_info['latScale'][image_id]
-            H=(hei-image_info['heightOffset'][image_id])/image_info['heightScale'][image_id]
-
-            BL=B*L;BH=B*H;LH=L*H;BB=B*B;LL=L*L;HH=H*H;BLH=B*L*H;BBL=B*B*L;BBH=B*B*H;LLB=L*L*B;LLH=L*L*H;HHB=H*H*B;HHL=H*H*L;BBB=B*B*B;LLL=L*L*L;HHH=H*H*H
-            LNUM=image_info['lineNumCoef'][image_id][:,0]+image_info['lineNumCoef'][image_id][:,1]*L+image_info['lineNumCoef'][image_id][:,2]*B+image_info['lineNumCoef'][image_id][:,3]*H\
-                            +image_info['lineNumCoef'][image_id][:,4]*BL+image_info['lineNumCoef'][image_id][:,5]*LH+image_info['lineNumCoef'][image_id][:,6]*BH\
-                            +image_info['lineNumCoef'][image_id][:,7]*LL+image_info['lineNumCoef'][image_id][:,8]*BB+image_info['lineNumCoef'][image_id][:,9]*HH\
-                            +image_info['lineNumCoef'][image_id][:,10]*BLH+image_info['lineNumCoef'][image_id][:,11]*LLL+image_info['lineNumCoef'][image_id][:,12]*BBL\
-                            +image_info['lineNumCoef'][image_id][:,13]*HHL+image_info['lineNumCoef'][image_id][:,14]*LLB+image_info['lineNumCoef'][image_id][:,15]*BBB\
-                            +image_info['lineNumCoef'][image_id][:,16]*HHB+image_info['lineNumCoef'][image_id][:,17]*LLH+image_info['lineNumCoef'][image_id][:,18]*BBH\
-                            +image_info['lineNumCoef'][image_id][:,19]*HHH
-                    
-            LDEN=image_info['lineDenCoef'][image_id][:,0]+image_info['lineDenCoef'][image_id][:,1]*L+image_info['lineDenCoef'][image_id][:,2]*B+image_info['lineDenCoef'][image_id][:,3]*H\
-                    +image_info['lineDenCoef'][image_id][:,4]*BL+image_info['lineDenCoef'][image_id][:,5]*LH+image_info['lineDenCoef'][image_id][:,6]*BH\
-                    +image_info['lineDenCoef'][image_id][:,7]*LL+image_info['lineDenCoef'][image_id][:,8]*BB+image_info['lineDenCoef'][image_id][:,9]*HH\
-                    +image_info['lineDenCoef'][image_id][:,10]*BLH+image_info['lineDenCoef'][image_id][:,11]*LLL+image_info['lineDenCoef'][image_id][:,12]*BBL\
-                    +image_info['lineDenCoef'][image_id][:,13]*HHL+image_info['lineDenCoef'][image_id][:,14]*LLB+image_info['lineDenCoef'][image_id][:,15]*BBB\
-                    +image_info['lineDenCoef'][image_id][:,16]*HHB+image_info['lineDenCoef'][image_id][:,17]*LLH+image_info['lineDenCoef'][image_id][:,18]*BBH\
-                    +image_info['lineDenCoef'][image_id][:,19]*HHH
-                    
-            SNUM=image_info['sampNumCoef'][image_id][:,0]+image_info['sampNumCoef'][image_id][:,1]*L+image_info['sampNumCoef'][image_id][:,2]*B+image_info['sampNumCoef'][image_id][:,3]*H\
-                    +image_info['sampNumCoef'][image_id][:,4]*BL+image_info['sampNumCoef'][image_id][:,5]*LH+image_info['sampNumCoef'][image_id][:,6]*BH\
-                    +image_info['sampNumCoef'][image_id][:,7]*LL+image_info['sampNumCoef'][image_id][:,8]*BB+image_info['sampNumCoef'][image_id][:,9]*HH\
-                    +image_info['sampNumCoef'][image_id][:,10]*BLH+image_info['sampNumCoef'][image_id][:,11]*LLL+image_info['sampNumCoef'][image_id][:,12]*BBL\
-                    +image_info['sampNumCoef'][image_id][:,13]*HHL+image_info['sampNumCoef'][image_id][:,14]*LLB+image_info['sampNumCoef'][image_id][:,15]*BBB\
-                    +image_info['sampNumCoef'][image_id][:,16]*HHB+image_info['sampNumCoef'][image_id][:,17]*LLH+image_info['sampNumCoef'][image_id][:,18]*BBH\
-                    +image_info['sampNumCoef'][image_id][:,19]*HHH
-            
-            SDEN=image_info['sampDenCoef'][image_id][:,0]+image_info['sampDenCoef'][image_id][:,1]*L+image_info['sampDenCoef'][image_id][:,2]*B+image_info['sampDenCoef'][image_id][:,3]*H\
-                    +image_info['sampDenCoef'][image_id][:,4]*BL+image_info['sampDenCoef'][image_id][:,5]*LH+image_info['sampDenCoef'][image_id][:,6]*BH\
-                    +image_info['sampDenCoef'][image_id][:,7]*LL+image_info['sampDenCoef'][image_id][:,8]*BB+image_info['sampDenCoef'][image_id][:,9]*HH\
-                    +image_info['sampDenCoef'][image_id][:,10]*BLH+image_info['sampDenCoef'][image_id][:,11]*LLL+image_info['sampDenCoef'][image_id][:,12]*BBL\
-                    +image_info['sampDenCoef'][image_id][:,13]*HHL+image_info['sampDenCoef'][image_id][:,14]*LLB+image_info['sampDenCoef'][image_id][:,15]*BBB\
-                    +image_info['sampDenCoef'][image_id][:,16]*HHB+image_info['sampDenCoef'][image_id][:,17]*LLH+image_info['sampDenCoef'][image_id][:,18]*BBH\
-                    +image_info['sampDenCoef'][image_id][:,19]*HHH
-            
-            dLNUMB=image_info['lineNumCoef'][image_id][:,2]+image_info['lineNumCoef'][image_id][:,4]*L+image_info['lineNumCoef'][image_id][:,6]*H+2*image_info['lineNumCoef'][image_id][:,8]*B+image_info['lineNumCoef'][image_id][:,10]*LH+2*image_info['lineNumCoef'][image_id][:,12]*BL+\
-                image_info['lineNumCoef'][image_id][:,14]*LL+3*image_info['lineNumCoef'][image_id][:,15]*BB+image_info['lineNumCoef'][image_id][:,16]*HH+2*image_info['lineNumCoef'][image_id][:,18]*BH
-            dLNUML=image_info['lineNumCoef'][image_id][:,1]+image_info['lineNumCoef'][image_id][:,4]*B+image_info['lineNumCoef'][image_id][:,5]*H+2*image_info['lineNumCoef'][image_id][:,7]*L+image_info['lineNumCoef'][image_id][:,10]*BH\
-                +3*image_info['lineNumCoef'][image_id][:,11]*LL+image_info['lineNumCoef'][image_id][:,12]*BB+image_info['lineNumCoef'][image_id][:,13]*HH+2*image_info['lineNumCoef'][image_id][:,14]*BL+2*image_info['lineNumCoef'][image_id][:,17]*H*L
-            dLNUMH=image_info['lineNumCoef'][image_id][:,3]+image_info['lineNumCoef'][image_id][:,5]*L+image_info['lineNumCoef'][image_id][:,6]*B+2*image_info['lineNumCoef'][image_id][:,9]*H\
-                +image_info['lineNumCoef'][image_id][:,10]*BL+2*image_info['lineNumCoef'][image_id][:,13]*L*H+2*image_info['lineNumCoef'][image_id][:,16]*B*H+image_info['lineNumCoef'][image_id][:,17]*LL+image_info['lineNumCoef'][image_id][:,18]*BB+3*image_info['lineNumCoef'][image_id][:,19]*HH
-
-            dLDENB=image_info['lineDenCoef'][image_id][:,2]+image_info['lineDenCoef'][image_id][:,4]*L+image_info['lineDenCoef'][image_id][:,6]*H+2*image_info['lineDenCoef'][image_id][:,8]*B+image_info['lineDenCoef'][image_id][:,10]*LH+2*image_info['lineDenCoef'][image_id][:,12]*BL+\
-                image_info['lineDenCoef'][image_id][:,14]*LL+3*image_info['lineDenCoef'][image_id][:,15]*BB+image_info['lineDenCoef'][image_id][:,16]*HH+2*image_info['lineDenCoef'][image_id][:,18]*BH
-            dLDENL=image_info['lineDenCoef'][image_id][:,1]+image_info['lineDenCoef'][image_id][:,4]*B+image_info['lineDenCoef'][image_id][:,5]*H+2*image_info['lineDenCoef'][image_id][:,7]*L+image_info['lineDenCoef'][image_id][:,10]*BH\
-                +3*image_info['lineDenCoef'][image_id][:,11]*LL+image_info['lineDenCoef'][image_id][:,12]*BB+image_info['lineDenCoef'][image_id][:,13]*HH+2*image_info['lineDenCoef'][image_id][:,14]*BL+2*image_info['lineDenCoef'][image_id][:,17]*H*L
-            dLDENH=image_info['lineDenCoef'][image_id][:,3]+image_info['lineDenCoef'][image_id][:,5]*L+image_info['lineDenCoef'][image_id][:,6]*B+2*image_info['lineDenCoef'][image_id][:,9]*H\
-                +image_info['lineDenCoef'][image_id][:,10]*BL+2*image_info['lineDenCoef'][image_id][:,13]*L*H+2*image_info['lineDenCoef'][image_id][:,16]*B*H+image_info['lineDenCoef'][image_id][:,17]*LL+image_info['lineDenCoef'][image_id][:,18]*BB+3*image_info['lineDenCoef'][image_id][:,19]*HH
-
-            dSNUMB=image_info['sampNumCoef'][image_id][:,2]+image_info['sampNumCoef'][image_id][:,4]*L+image_info['sampNumCoef'][image_id][:,6]*H+2*image_info['sampNumCoef'][image_id][:,8]*B+image_info['sampNumCoef'][image_id][:,10]*LH+2*image_info['sampNumCoef'][image_id][:,12]*BL+\
-                image_info['sampNumCoef'][image_id][:,14]*LL+3*image_info['sampNumCoef'][image_id][:,15]*BB+image_info['sampNumCoef'][image_id][:,16]*HH+2*image_info['sampNumCoef'][image_id][:,18]*BH
-            dSNUML=image_info['sampNumCoef'][image_id][:,1]+image_info['sampNumCoef'][image_id][:,4]*B+image_info['sampNumCoef'][image_id][:,5]*H+2*image_info['sampNumCoef'][image_id][:,7]*L+image_info['sampNumCoef'][image_id][:,10]*BH\
-                +3*image_info['sampNumCoef'][image_id][:,11]*LL+image_info['sampNumCoef'][image_id][:,12]*BB+image_info['sampNumCoef'][image_id][:,13]*HH+2*image_info['sampNumCoef'][image_id][:,14]*BL+2*image_info['sampNumCoef'][image_id][:,17]*H*L
-            dSNUMH=image_info['sampNumCoef'][image_id][:,3]+image_info['sampNumCoef'][image_id][:,5]*L+image_info['sampNumCoef'][image_id][:,6]*B+2*image_info['sampNumCoef'][image_id][:,9]*H\
-                +image_info['sampNumCoef'][image_id][:,10]*BL+2*image_info['sampNumCoef'][image_id][:,13]*L*H+2*image_info['sampNumCoef'][image_id][:,16]*B*H+image_info['sampNumCoef'][image_id][:,17]*LL+image_info['sampNumCoef'][image_id][:,18]*BB+3*image_info['sampNumCoef'][image_id][:,19]*HH
-
-            dSDENB=image_info['sampDenCoef'][image_id][:,2]+image_info['sampDenCoef'][image_id][:,4]*L+image_info['sampDenCoef'][image_id][:,6]*H+2*image_info['sampDenCoef'][image_id][:,8]*B+image_info['sampDenCoef'][image_id][:,10]*LH+2*image_info['sampDenCoef'][image_id][:,12]*BL+\
-                image_info['sampDenCoef'][image_id][:,14]*LL+3*image_info['sampDenCoef'][image_id][:,15]*BB+image_info['sampDenCoef'][image_id][:,16]*HH+2*image_info['sampDenCoef'][image_id][:,18]*BH
-            dSDENL=image_info['sampDenCoef'][image_id][:,1]+image_info['sampDenCoef'][image_id][:,4]*B+image_info['sampDenCoef'][image_id][:,5]*H+2*image_info['sampDenCoef'][image_id][:,7]*L+image_info['sampDenCoef'][image_id][:,10]*BH\
-                +3*image_info['sampDenCoef'][image_id][:,11]*LL+image_info['sampDenCoef'][image_id][:,12]*BB+image_info['sampDenCoef'][image_id][:,13]*HH+2*image_info['sampDenCoef'][image_id][:,14]*BL+2*image_info['sampDenCoef'][image_id][:,17]*H*L
-            dSDENH=image_info['sampDenCoef'][image_id][:,3]+image_info['sampDenCoef'][image_id][:,5]*L+image_info['sampDenCoef'][image_id][:,6]*B+2*image_info['sampDenCoef'][image_id][:,9]*H\
-                +image_info['sampDenCoef'][image_id][:,10]*BL+2*image_info['sampDenCoef'][image_id][:,13]*L*H+2*image_info['sampDenCoef'][image_id][:,16]*B*H+image_info['sampDenCoef'][image_id][:,17]*LL+image_info['sampDenCoef'][image_id][:,18]*BB+3*image_info['sampDenCoef'][image_id][:,19]*HH
-
-            dLB=(dLNUMB*LDEN-LNUM*dLDENB)/(LDEN*LDEN)
-            dLL=(dLNUML*LDEN-LNUM*dLDENL)/(LDEN*LDEN)
-            dLH=(dLNUMH*LDEN-LNUM*dLDENH)/(LDEN*LDEN)
-
-            dSB=(dSNUMB*SDEN-SNUM*dSDENB)/(SDEN*SDEN)
-            dSL=(dSNUML*SDEN-SNUM*dSDENL)/(SDEN*SDEN)
-            dSH=(dSNUMH*SDEN-SNUM*dSDENH)/(SDEN*SDEN)
-
-            dLlat=dLB/image_info['latScale'][image_id];dLlon=dLL/image_info['longScale'][image_id];dLhei=dLH/image_info['heightScale'][image_id]
-            dSlat=dSB/image_info['latScale'][image_id];dSlon=dSL/image_info['longScale'][image_id];dShei=dSH/image_info['heightScale'][image_id]
-
-            l=np.asarray(tiept_info['imgpt_x'][indices])
-            s=np.asarray(tiept_info['imgpt_y'][indices])
-
-            for i in range(tiept_num):
-                A[i*2:(i+1)*2,:]=np.asarray([[dLlon.values[i]*image_info['lineScale'][image_id][i],dLlat.values[i]*image_info['lineScale'][image_id][i],dLhei.values[i]*image_info['lineScale'][image_id][i]],\
-                                                                [dSlon.values[i]*image_info['sampScale'][image_id][i],dSlat.values[i]*image_info['sampScale'][image_id][i],dShei.values[i]*image_info['sampScale'][image_id][i]]])
-                fl_0=(LNUM.values[i]/LDEN.values[i])*image_info['lineScale'][i]+image_info['lineOffset'][i]
-                fs_0=(SNUM.values[i]/SDEN.values[i])*image_info['sampScale'][i]+image_info['sampOffset'][i]
-                                
-                f[i*2]=l[i]-fl_0
-                f[i*2+1]=s[i]-fs_0
-                f=f
-
-            coeff=A.T@P@A
-            Q_xx=np.linalg.inv(coeff)
-            adj_esti=Q_xx@A.T@P@f
-
-            X=adj_esti
-
-            iter_count+=1
-
-            lon+=X[0]
-            lat+=X[1]
-            hei+=X[2]
-
-            if np.fabs(np.max(adj_esti))<=eps or iter_count>=max_iter:
-                flag=False
-
-        tiept_info['objpt_x'][indices]=lon
-        tiept_info['objpt_y'][indices]=lat
-        tiept_info['objpt_z'][indices]=hei
+    tiept_info['objpt_x'][indices]=lon
+    tiept_info['objpt_y'][indices]=lat
+    tiept_info['objpt_z'][indices]=hei
 
 def forward_intersec_on_const_level():
-    global tiept_info
     objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
-
     duplicate_indices=np.where(counts>1)[0]
-    valid_objname=objname_set[duplicate_indices]
+    valid_objnames=objname_set[duplicate_indices]
       
-    tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
+    tiept_idx = np.isin(tiept_info['object_name'],valid_objnames)
 
-    tiept_info=tiept_info.loc[tiept_idx]
+    for key in tiept_info.keys():
+        tiept_info[key]=tiept_info[key][tiept_idx]
 
-    with futures.ProcessPoolExecutor() as pexecutor:
-        pexecutor.map(forward_intersec_unit,valid_objname)
-    
-    indices=tiept_info['objpt_x']!=0
-    tiept_info=tiept_info.loc[indices]
-
-    tiept_info.index=range(len(tiept_info))
+    with futures.ThreadPoolExecutor(max_workers=max_core) as texecutor:
+        texecutor.map(forward_intersec_single_point,valid_objnames)
 
 def forward_intersec():
-    global tiept_info
-
     objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
     duplicate_indices=np.where(counts>1)[0]
     valid_objname=objname_set[duplicate_indices]
       
     tiept_idx = np.isin(tiept_info['object_name'],valid_objname)
 
-    tiept_info=tiept_info.loc[tiept_idx]
-    tiept_info.index=range(len(tiept_info))
-    
-    paras=valid_objname,['multiple_points']*len(valid_objname)
+    # tiept_info=tiept_info.loc[tiept_idx]
+    # tiept_info.index=range(len(tiept_info))
+    for key in tiept_info.keys():
+        tiept_info[key]=tiept_info[key][tiept_idx]
 
-    with futures.ThreadPoolExecutor() as texecutor:
-        texecutor.map(forward_intersec_unit,*paras)
+    with futures.ThreadPoolExecutor(max_workers=max_core) as texecutor:
+        texecutor.map(forward_intersec_multiple_points,valid_objname)
 
-    tiept_info.index=range(len(tiept_info))
+    # tiept_info.index=range(len(tiept_info))
 
 def refine_para_compute(refine_model=None):
     img_num=len(image_info['ImageID'])
 
     if refine_model=='translation':
-        image_info['refine_paras']=np.zeros((img_num,2))
+        refine_num=2
+        image_info['refine_paras']=np.zeros((img_num,refine_num))
     elif refine_model=='affine':
-        image_info['refine_paras']=np.zeros((img_num,6))
+        refine_num=6
+        image_info['refine_paras']=np.zeros((img_num,refine_num))
+
+    tiept_curr_img=dict(key=['img_id','imgpt_x','img_pt_y','object_name','objpt_x','objpt_y','objpt_z'])
 
     for id in image_info['ImageID']:
         indices=np.where(tiept_info['img_id']==id)[0]
         tiept_num=len(indices)
-        tiept_curr_img=tiept_info.iloc[indices]
-        
+        # tiept_curr_img=tiept_info.loc[indices]
+        # tiept_curr_img=tiept_info[indices]
+        for key in tiept_info.keys():
+            tiept_curr_img[key]=tiept_info[key][indices]
+
         L=tiept_curr_img['objpt_x'].astype('float32')
         B=tiept_curr_img['objpt_y'].astype('float32')
         H=tiept_curr_img['objpt_z'].astype('float32')
@@ -500,18 +503,13 @@ def refine_para_compute(refine_model=None):
                 +image_info['sampDenCoef'][id][16]*HHB+image_info['sampDenCoef'][id][17]*LLH+image_info['sampDenCoef'][id][18]*BBH\
                 +image_info['sampDenCoef'][id][19]*HHH
         
-        if refine_model=='translation':
-            refine_num=2
-        elif refine_model=='affine':
-            refine_num=6
-        
         A=np.zeros((tiept_num*2,refine_num))
         P=np.eye(tiept_num*2)
         f=np.zeros((tiept_num*2))        
         refine_paras=np.zeros((refine_num))
         X=np.zeros((refine_num))
 
-        eps=10e-5
+        eps=1e-5
         max_iter=100
 
         flag=True
@@ -547,18 +545,18 @@ def refine_para_compute(refine_model=None):
         image_info['refine_paras'][id]=refine_paras
         tqdm.write(f'{refine_paras}')
 
-    return image_info
-
 def ground2imge():
     tiept_info['imgpt_x_bk']=np.zeros(np.size(tiept_info['imgpt_x']))
     tiept_info['imgpt_y_bk']=np.zeros(np.size(tiept_info['imgpt_y']))
 
     for id in tqdm(image_info['ImageID'],desc=f'backward intersection images'):
             indices=np.where(tiept_info['img_id']==id)[0]
-            tiept_num=len(indices)
             tiept_curr_img=dict(key=['img_id','imgpt_x','img_pt_y','object_name','objpt_x','objpt_y','objpt_z'])
 
-            tiept_curr_img=tiept_info.iloc[indices]
+            # tiept_curr_img=tiept_info.loc[indices]
+            # tiept_curr_img=tiept_info[indices]
+            for key in tiept_info.keys():
+                tiept_curr_img[key]=tiept_info[key][indices]
 
             L=tiept_curr_img['objpt_x'].astype('float32')
             B=tiept_curr_img['objpt_y'].astype('float32')
@@ -604,14 +602,15 @@ def ground2imge():
             l=(LNUM/LDEN)*image_info['lineScale'][id]+image_info['lineOffset'][id];s=(SNUM/SDEN)*image_info['sampScale'][id]+image_info['sampOffset'][id]
             tiept_info['imgpt_x_bk'][indices]=l;tiept_info['imgpt_y_bk'][indices]=s
 
-    return tiept_info
-
 def accuracy_assessment(refine_model='translation'):
     for id in tqdm(image_info['ImageID'],desc=f'accracy assessing images'):
             indices=np.where(tiept_info['img_id']==id)[0]
             tiept_curr_img=dict(key=['imgpt_id','object_name','img_id','imgpt_y','imgpt_x','objpt_x','objpt_y','objpt_z','imgpt_x_bk','imgpt_y_bk'])
 
-            tiept_curr_img=tiept_info.iloc[indices]
+            # tiept_curr_img=tiept_info.loc[indices]
+            # tiept_curr_img=tiept_info[indices]
+            for key in tiept_info.keys():
+                tiept_curr_img[key]=tiept_info[key][indices]
 
             if refine_model=='translation':
                 x_diff=tiept_curr_img['imgpt_x_bk']-tiept_curr_img['imgpt_x']-image_info['refine_paras'][id][0]
@@ -801,8 +800,8 @@ if __name__=='__main__':
     ############ pre-defined parameters ############
     paras=np.asarray([4,3,2,1,5]).reshape((5,1))
     paras_num=len(paras)
-    obs_num=10000
-    epsilon=1e-5
+    max_core=cpu_count()
+    counts=0
     ################################################
 
     ############ files ############
@@ -818,15 +817,16 @@ if __name__=='__main__':
     # format_writing_tiepts(tiept_info,tiept_out_file)
     # slapt_num,slapt_info=load_sla_file(sla_file)
 
-    current_idx=np.where(np.isin(tiept_info['img_id'],image_info['ImageID']))[0]
-    tiept_info=tiept_info.loc[current_idx]
-
     forward_intersec_on_const_level()
 
-    forward_intersec()
+    # tiept_info=tiept_info.loc[tiept_info['objpt_x']!=0]
+    # tiept_info=tiept_info[tiept_info['objpt_x']!=0]
+    # tiept_info.index=range(len(tiept_info))
+    indices=tiept_info['objpt_x']!=0
+    for key in tiept_info.keys():
+        tiept_info[key]=tiept_info[key][indices]
 
-    tiept_info=tiept_info.loc[tiept_info['objpt_x']!=0]
-    tiept_info.index=range(len(tiept_info))
+    forward_intersec()
 
     refine_para_compute(refine_model='translation')
     ground2imge()
