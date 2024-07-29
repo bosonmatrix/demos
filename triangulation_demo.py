@@ -800,34 +800,35 @@ if __name__=='__main__':
     ################################################
 
     ############ files ############
-    order_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\zdb.tri.txt'
-    tiept_image_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\zdb.tiepick-ties.tie'
+    order_file=r"F:\\phD_career\\multi_source_adjustment\\codes\\BA-sv2\\123_XQProject\\XQSatBA\\Tri\\zdb.tri.txt"
+    tiept_image_file=r'F:\\phD_career\\multi_source_adjustment\\codes\\BA-sv2\\123_XQProject\\XQSatBA\\Tri\\zdb.tiepick-ties.tie'
     tiept_out_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\tiept_xq_parallel.txt'
     sla_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\tie.sla'
     ################################################
 
     order_info,image_info=load_order_file(order_file)
     load_rpc_file()
-    # tiept_num,tiept_info=load_tiept_data(tiept_image_file)
+    tiept_num,tiept_info=load_tiept_data(tiept_image_file)
     # format_writing_tiepts(tiept_info,tiept_out_file)
     # slapt_num,slapt_info=load_sla_file(sla_file)
 
-    # forward_intersec_on_const_level()
+    forward_intersec_on_const_level()
 
     # tiept_info=tiept_info.loc[tiept_info['objpt_x']!=0]
     # tiept_info=tiept_info[tiept_info['objpt_x']!=0]
     # tiept_info.index=range(len(tiept_info))
-    # indices=tiept_info['objpt_x']!=0
-    # for key in tiept_info.keys():
-    #     tiept_info[key]=tiept_info[key][indices]
-
-    tiept_info=pd.read_csv(tiept_out_file,sep='\t')
-    tiept_info.columns=['object_name','objpt_x','objpt_y','objpt_z','img_id','imgpt_x','imgpt_y','Reliability','Type','Overlap','MaxBHR']
-    del tiept_info['Reliability'],tiept_info['Type'],tiept_info['Overlap'],tiept_info['MaxBHR']
-    
-    tiept_info = {col:tiept_info[col].tolist() for col in tiept_info.columns}
+    indices=tiept_info['objpt_x']!=0
     for key in tiept_info.keys():
-        tiept_info[key]=np.asarray(tiept_info[key])
+        tiept_info[key]=tiept_info[key][indices]
+
+    # tiept_info=pd.read_csv(tiept_out_file,sep='\t')
+    # tiept_info.columns=['object_name','objpt_x','objpt_y','objpt_z','img_id','imgpt_x','imgpt_y','Reliability','Type','Overlap','MaxBHR']
+    # del tiept_info['Reliability'],tiept_info['Type'],tiept_info['Overlap'],tiept_info['MaxBHR']
+    
+    # tiept_info = {col:tiept_info[col].tolist() for col in tiept_info.columns}
+    # for key in tiept_info.keys():
+    #     tiept_info[key]=np.asarray(tiept_info[key])
+
     forward_intersec()
 
     refine_para_compute(refine_model='translation')
