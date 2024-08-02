@@ -60,7 +60,7 @@ def load_order_file(order_file):
 
     return order_info,image_info
 
-def load_tiept_data(tiept_file):
+def load_imgtiept_data(tiept_file):
     with open(tiept_file, 'r') as file:
         lines = file.readlines()
 
@@ -74,9 +74,15 @@ def load_tiept_data(tiept_file):
             values = line.split('\t')
             for key_value in zip(keys,values):
                 if key_value[0] not in tiept_info.keys():
-                    tiept_info[key_value[0]]=[eval(key_value[1])]
+                    if key_value[0]=='object_name':
+                         tiept_info[key_value[0]]=[key_value[1]]
+                    else:
+                        tiept_info[key_value[0]]=[eval(key_value[1])]
                 else:
-                    tiept_info[key_value[0]].append(eval(key_value[1]))
+                    if key_value[0]=='object_name':
+                        tiept_info[key_value[0]].append(key_value[1])
+                    else:
+                        tiept_info[key_value[0]].append(eval(key_value[1]))
                             
     for key in tiept_info.keys():
         tiept_info[key]=np.asarray(tiept_info[key])
@@ -90,43 +96,146 @@ def load_tiept_data(tiept_file):
 
     return tiept_num,tiept_info
 
-def load_rpc_file():
-    image_num=len(image_info['ImageID'])
-    for i in tqdm(range(image_num),desc=f'loading RPC files'):
-        (image_path,image_name)=os.path.split(image_info['ImageFile'][i])
-        image_name_split=str.split(image_name,'.')
-        rpc_file=os.path.join(image_path,image_name_split[0]+'.rpb')
-        with open(rpc_file, 'r') as file:
-            lines = file.readlines()
+def load_groundtiept_data(tiept_file):
+    with open(tiept_file, 'r') as file:
+        lines = file.readlines()
 
-            for j in range(len(lines)):
-                line = lines[j].strip()
-                line_split=str.split(line,'=')
-                if line_split[0].strip() not in ['satId','bandId','SpecId','BEGIN_GROUP']:
-                    if line_split[0].strip()=='END_GROUP':
-                        break
+    keys=['imgpt_id','object_name','img_id','objpt_x','objpt_y','objpt_z']
+    tiept_info = {}
+
+    for line in tqdm(lines[1:-1],desc='loading tie points'):
+        line = line.strip()
+
+        if line:
+            values = line.split('\t')
+            for key_value in zip(keys,values):
+                if key_value[0] not in tiept_info.keys():
+                    if key_value[0]=='object_name':
+                         tiept_info[key_value[0]]=[key_value[1]]
                     else:
-                        key=line_split[0].strip()
-                        if key not in ['lineNumCoef','lineDenCoef','sampNumCoef','sampDenCoef']:
-                            if len(line_split)==1:
-                                continue
-                            else:
-                                value=line_split[1].strip(';')
-                                value=eval(value)
-                                if key in image_info.keys():
-                                    image_info[key].append(value)
-                                else:
-                                    image_info[key]=[value]
+                        tiept_info[key_value[0]]=[eval(key_value[1])]
+                else:
+                    if key_value[0]=='object_name':
+                        tiept_info[key_value[0]].append(key_value[1])
+                    else:
+                        tiept_info[key_value[0]].append(eval(key_value[1]))
+                            
+    for key in tiept_info.keys():
+        tiept_info[key]=np.asarray(tiept_info[key])
+
+    # tiept_info=pd.DataFrame(tiept_info)
+
+    tiept_num=len(tiept_info['object_name'])
+    tiept_info['imgpt_x']=np.zeros(tiept_num)
+    tiept_info['imgpt_y']=np.zeros(tiept_num)
+
+    return tiept_num,tiept_info
+
+def load_rpc_file(type='rpb'):
+    image_num=len(image_info['ImageID'])
+    if type=='rpb':
+        for i in tqdm(range(image_num),desc=f'loading RPC files'):
+            (image_path,image_name)=os.path.split(image_info['ImageFile'][i])
+            image_name_split=str.split(image_name,'.')
+            rpc_file=os.path.join(image_path,image_name_split[0]+'.rpb')
+            with open(rpc_file, 'r') as file:
+                lines = file.readlines()
+
+                for j in range(len(lines)):
+                    line = lines[j].strip()
+                    line_split=str.split(line,'=')
+                    if line_split[0].strip() not in ['satId','bandId','SpecId','BEGIN_GROUP']:
+                        if line_split[0].strip()=='END_GROUP':
+                            break
                         else:
-                            begin_idx=j+1
-                            end_idx=j+21
-                            values=lines[begin_idx:end_idx]
-                            values_pure=[each.strip() for each in values]
-                            values_digital=[eval(each.strip((',;)'))) for each in values_pure]
-                            if key in image_info.keys():
-                                image_info[key].append(values_digital)
+                            key=line_split[0].strip()
+                            if key not in ['lineNumCoef','lineDenCoef','sampNumCoef','sampDenCoef']:
+                                if len(line_split)==1:
+                                    continue
+                                else:
+                                    value=line_split[1].strip(';')
+                                    value=eval(value)
+                                    if key in image_info.keys():
+                                        image_info[key].append(value)
+                                    else:
+                                        image_info[key]=[value]
                             else:
-                                image_info[key]=[values_digital]
+                                begin_idx=j+1
+                                end_idx=j+21
+                                values=lines[begin_idx:end_idx]
+                                values_pure=[each.strip() for each in values]
+                                values_digital=[eval(each.strip((',;)'))) for each in values_pure]
+                                if key in image_info.keys():
+                                    image_info[key].append(values_digital)
+                                else:
+                                    image_info[key]=[values_digital]
+
+    elif type=='txt':
+        for i in tqdm(range(image_num),desc=f'loading RPC files'):
+            sum_value=[]
+            (image_path,image_name)=os.path.split(image_info['ImageFile'][i])
+            image_name_split=str.split(image_name,'.')
+            rpc_file=os.path.join(image_path,image_name_split[0]+'_rpc.txt')
+            with open(rpc_file, 'r') as file:
+                lines = file.readlines()
+
+                for j in range(len(lines)):
+                    line = lines[j].strip()
+                    line_split=str.split(line,':')
+                    if j<10:
+                        line_split_2nd=str.split(line_split[1],' ')
+                        value=eval(line_split_2nd[1])
+                        if line_split[0] not in image_info.keys():
+                            image_info[line_split[0]]=[value]
+                        else:
+                            image_info[line_split[0]].append(value)
+                    elif 10<=j<30:
+                        value=eval(line_split[1])
+                        sum_value.append(value)
+                        if j==29:
+                            if 'lineNumCoef' not in image_info.keys():
+                                image_info['lineNumCoef']=[sum_value]
+                            else:
+                                image_info['lineNumCoef'].append(sum_value)
+                            sum_value=[]
+                    elif 30<=j<50:
+                        value=eval(line_split[1])
+                        sum_value.append(value)
+                        if j==49:
+                            if 'lineDenCoef' not in image_info.keys():
+                                image_info['lineDenCoef']=[sum_value]
+                            else:
+                                image_info['lineDenCoef'].append(sum_value)
+                            sum_value=[]
+                    elif 50<=j<70:
+                        value=eval(line_split[1])
+                        sum_value.append(value)
+                        if j==69:
+                            if 'sampNumCoef' not in image_info.keys():
+                                image_info['sampNumCoef']=[sum_value]
+                            else:
+                                image_info['sampNumCoef'].append(sum_value)
+                            sum_value=[]
+                    elif 70<=j<90:
+                        value=eval(line_split[1])
+                        sum_value.append(value)
+                        if j==89:
+                            if 'sampDenCoef' not in image_info.keys():
+                                image_info['sampDenCoef']=[sum_value]
+                            else:
+                                image_info['sampDenCoef'].append(sum_value)
+                            sum_value=[]
+
+    image_info["lineOffset"] = image_info.pop("LINE_OFF")
+    image_info["sampOffset"] = image_info.pop("SAMP_OFF")
+    image_info["latOffset"] = image_info.pop("LAT_OFF")
+    image_info["longOffset"] = image_info.pop("LONG_OFF")
+    image_info["heightOffset"] = image_info.pop("HEIGHT_OFF")
+    image_info["lineScale"] = image_info.pop("LINE_SCALE")
+    image_info["sampScale"] = image_info.pop("SAMP_SCALE")
+    image_info["latScale"] = image_info.pop("LAT_SCALE")
+    image_info["longScale"] = image_info.pop("LONG_SCALE")
+    image_info["heightScale"] = image_info.pop("HEIGHT_SCALE")
 
     for key in image_info.keys():
         image_info[key]=np.asarray(image_info[key])            
@@ -302,7 +411,7 @@ def forward_intersec_multiple_points(obj_name):
     hei=tiept_info['objpt_z'][indices].astype('float32')
 
     while flag:
-        tqdm.write(f'forward intersection(multiple points): the {iter_count+1}th iteration of tiepoint {obj_name}')
+        # tqdm.write(f'f orward intersection(multiple points): the {iter_count+1}th iteration of tiepoint {obj_name}')
         
         L=(lon-image_info['longOffset'][image_id])/image_info['longScale'][image_id]
         B=(lat-image_info['latOffset'][image_id])/image_info['latScale'][image_id]
@@ -410,6 +519,7 @@ def forward_intersec_multiple_points(obj_name):
     tiept_info['objpt_x'][indices]=lon
     tiept_info['objpt_y'][indices]=lat
     tiept_info['objpt_z'][indices]=hei
+    print('idx',indices,'lon',lon,'lat',lat,'hei',hei)
 
 def forward_intersec_on_const_level():
     objname_set,counts=np.unique(tiept_info['object_name'],return_counts=True)
@@ -540,7 +650,7 @@ def refine_para_compute(refine_model=None):
         image_info['refine_paras'][id]=refine_paras
         tqdm.write(f'{refine_paras}')
 
-def ground2imge():
+def ground2image():
     tiept_info['imgpt_x_bk']=np.zeros(np.size(tiept_info['imgpt_x']))
     tiept_info['imgpt_y_bk']=np.zeros(np.size(tiept_info['imgpt_y']))
 
@@ -633,7 +743,7 @@ def format_writing_tiepts(output_file,format='xq'):
 
             file.write("\tTie  point  Object  Coordinate\n".format())
             file.write("\tTie  point  Object  Num Is {}\n".format(tiept_num))
-            file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(*columns))
+            file.write("\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(*columns))
 
             for i in tqdm(range(tiept_num),desc='writing tie points to file'):
                 file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
@@ -800,26 +910,29 @@ if __name__=='__main__':
     ################################################
 
     ############ files ############
-    order_file=r"F:\\phD_career\\multi_source_adjustment\\codes\\BA-sv2\\123_XQProject\\XQSatBA\\Tri\\zdb.tri.txt"
-    tiept_image_file=r'F:\\phD_career\\multi_source_adjustment\\codes\\BA-sv2\\123_XQProject\\XQSatBA\\Tri\\zdb.tiepick-ties.tie'
+    order_file=r"F:\\ToZY\\zdb.tri.txt"
+    tiept_image_file=r"F:\\ToZY\\tie.txt"
     tiept_out_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\tiept_xq_parallel.txt'
     sla_file=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\tie.sla'
     ################################################
 
     order_info,image_info=load_order_file(order_file)
-    load_rpc_file()
-    tiept_num,tiept_info=load_tiept_data(tiept_image_file)
+    load_rpc_file(type='txt')
+    tiept_num,tiept_info=load_imgtiept_data(tiept_image_file)
     # format_writing_tiepts(tiept_info,tiept_out_file)
     # slapt_num,slapt_info=load_sla_file(sla_file)
 
+    s=time.perf_counter()
     forward_intersec_on_const_level()
+    e=time.perf_counter()
+    print(e-s)
 
     # tiept_info=tiept_info.loc[tiept_info['objpt_x']!=0]
     # tiept_info=tiept_info[tiept_info['objpt_x']!=0]
     # tiept_info.index=range(len(tiept_info))
-    indices=tiept_info['objpt_x']!=0
-    for key in tiept_info.keys():
-        tiept_info[key]=tiept_info[key][indices]
+    # indices=tiept_info['objpt_x']!=0
+    # for key in tiept_info.keys():
+    #     tiept_info[key]=tiept_info[key][indices]
 
     # tiept_info=pd.read_csv(tiept_out_file,sep='\t')
     # tiept_info.columns=['object_name','objpt_x','objpt_y','objpt_z','img_id','imgpt_x','imgpt_y','Reliability','Type','Overlap','MaxBHR']
@@ -831,9 +944,9 @@ if __name__=='__main__':
 
     forward_intersec()
 
-    refine_para_compute(refine_model='translation')
-    ground2imge()
-    accuracy_assessment(refine_model='translation')
-    # block_adjustment(tiept_info,tiept_num,image_info,refine_model='translation',adjust_method='with_laser')
-    e=time.perf_counter()
-    print((e-s)/60)
+    # refine_para_compute(refine_model='translation')
+    # ground2image()
+    # accuracy_assessment(refine_model='translation')
+    # # block_adjustment(tiept_info,tiept_num,image_info,refine_model='translation',adjust_method='with_laser')
+    # e=time.perf_counter()
+    # print((e-s)/60)
