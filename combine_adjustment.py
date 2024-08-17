@@ -1,3 +1,4 @@
+#%% preparations
 import numpy as np
 from tqdm import tqdm
 import os
@@ -355,8 +356,8 @@ def load_accuracy_file(accu_file):
                     tiept_info[line_split[0]]=[eval(line_split[1])]
             else:
                 line_split=str.split(lines[i].strip(),sep='\t')
-                idx1=np.where(tiept_info['object_name']==line_split[0])
-                idx2=np.where(tiept_info['img_id']==eval(line_split[1]))
+                idx1=np.where(tiept_info['object_name']==line_split[0])[0]
+                idx2=np.where(tiept_info['img_id']==eval(line_split[1]))[0]
                 idx=np.intersect1d(idx1,idx2)
                 if line_split[2]=='-nan(ind)' and line_split[3]!='-nan(ind)':
                     tiept_info['vx'][idx]=np.nan
@@ -437,7 +438,7 @@ def load_accuracy_file(accu_file):
         dompt_info['vx']=np.asarray([-9999.9]*len(dompt_info['imgpt_x']))
         dompt_info['vy']=np.asarray([-9999.9]*len(dompt_info['imgpt_x']))
 
-        for i in tqdm(range(line_idx+4,len(lines)),desc='reading tie points\' accuracy'):
+        for i in tqdm(range(line_idx+4,len(lines)),desc='reading check dom points\' accuracy'):
             if lines[i]=='\n':
                 line_idx=i
                 break
@@ -467,7 +468,7 @@ def load_accuracy_file(accu_file):
                     dompt_info['vx'][idx]=eval(line_split[2])
                     dompt_info['vy'][idx]=eval(line_split[3])
         
-        for i in tqdm(range(line_idx+4,len(lines)),desc='reading tie points\' accuracy'):
+        for i in tqdm(range(line_idx+4,len(lines)),desc='reading control dom points\' accuracy'):
             if lines[i]=='\n':
                 line_idx=i
                 break
@@ -590,20 +591,21 @@ def accuracy_visulization(pt_info,save_path=None):
 
     pt_info = {key: value for key, value in pt_info.items() if key not in ['RMSE_X','RMSE_Y','MEAN_X','MEAN_Y','ERR_X','ERR_Y','MIN_X','MIN_Y','MAX_X','MAX_Y']}
     ptinfo_df=pd.DataFrame(pt_info)
+    ptinfo_df=ptinfo_df.loc[ptinfo_df['vx']!=-9999.9]
 
     plt.figure(figsize=(figsize_w, figsize_h))
-    sns.scatterplot(x='imgpt_x',y='vx',hue='img_id',data=ptinfo_df,style='img_id',legend='auto')
+    sns.scatterplot(x='imgpt_x',y='vx',hue='img_id',size=0.01,data=ptinfo_df,style='img_id',legend='auto')
     plt.title('x residuals',fontsize=font_size)
     plt.xlabel('x',fontsize=font_size);plt.ylabel('y',fontsize=font_size)
     plt.savefig(os.path.join(save_path,'x_residuals.png'),bbox_inches='tight')
 
     plt.figure(figsize=(figsize_w, figsize_h))
-    sns.scatterplot(x='imgpt_y',y='vy',hue='img_id',data=ptinfo_df,style='img_id',legend='auto')
+    sns.scatterplot(x='imgpt_y',y='vy',hue='img_id',size=0.01,data=ptinfo_df,style='img_id',legend='auto')
     plt.title('y residuals',fontsize=font_size)
     plt.xlabel('x',fontsize=font_size);plt.ylabel('y',fontsize=font_size)
     plt.savefig(os.path.join(save_path,'y_residuals.png'),bbox_inches='tight')
 
-    for img in set(ptinfo_df['img_id']):
+    for img in set(image_info['ImageID']):
         indices=ptinfo_df['img_id']==img
         x_plt=ptinfo_df['imgpt_x'][indices]
         y_plt=ptinfo_df['imgpt_y'][indices]
@@ -613,7 +615,7 @@ def accuracy_visulization(pt_info,save_path=None):
         colors=ptinfo_df['object_name_num'][indices]
         plt.figure(figsize=(figsize_w, figsize_h))
         axes=plt.axes()
-        plt.quiver(y_plt[0:-1:intervals],x_plt[0:-1:intervals],v_plt[0:-1:intervals],u_plt[1:-1:intervals],colors[0:-1:intervals],cmap='turbo',scale=3.5e4,width=1e-3)
+        plt.quiver(x_plt[0:len(x_plt):intervals],y_plt[0:len(x_plt):intervals],u_plt[0:len(x_plt):intervals],v_plt[0:len(x_plt):intervals],colors[0:len(x_plt):intervals],cmap='turbo',width=1e-3)
         plt.title(f'horizontal shift (image {img})',fontsize=font_size)
         plt.xlim((0,image_info['cols'][img]));plt.ylim((0,image_info['rows'][img]))
         plt.xlabel('sample',fontsize=font_size);plt.ylabel('line',fontsize=font_size)
@@ -624,16 +626,18 @@ def accuracy_visulization(pt_info,save_path=None):
         axes.grid(which="minor", alpha=0.3)
         plt.savefig(os.path.join(save_path,f'horizontal_shift_image_{img}.png'),bbox_inches='tight')
 
-    for img in set(ptinfo_df['img_id']):
+    for img in set(image_info['ImageID']):
         indices=ptinfo_df['img_id']==img
         x_plt=ptinfo_df['imgpt_x'][indices]
+        y_plt=ptinfo_df['imgpt_y'][indices]
         u_plt=ptinfo_df['vx'][indices]
+        v_plt=ptinfo_df['vy'][indices]
         ptinfo_df["object_name_num"] = pd.factorize(ptinfo_df["object_name"])[0].astype(int)
         colors=ptinfo_df['object_name_num'][indices]
         plt.figure(figsize=(figsize_w, figsize_h))
         axes=plt.axes()
-        plt.quiver(y_plt[1:-1:intervals],x_plt[1:-1:intervals],0,u_plt[1:-1:intervals],colors[0:-1:intervals],cmap='turbo',scale=50,width=1e-3)
-        plt.title(f'column shift (image {img})',fontsize=font_size)
+        plt.quiver(x_plt[0:len(x_plt):intervals],y_plt[0:len(x_plt):intervals],u_plt[0:len(x_plt):intervals],0,colors[0:len(x_plt):intervals],cmap='turbo',width=1e-3)
+        plt.title(f'sample shift (image {img})',fontsize=font_size)
         plt.xlim((0,image_info['cols'][img]));plt.ylim((0,image_info['rows'][img]))
         plt.xlabel('sample',fontsize=font_size);plt.ylabel('line',fontsize=font_size)
         minor_ticks_x=np.linspace(0,image_info['cols'][img],min_tick_num)
@@ -643,16 +647,18 @@ def accuracy_visulization(pt_info,save_path=None):
         axes.grid(which="minor", alpha=0.3)
         plt.savefig(os.path.join(save_path,f'column_shift_image_{img}.png'),bbox_inches='tight')
     
-    for img in set(ptinfo_df['img_id']):
+    for img in set(image_info['ImageID']):
         indices=ptinfo_df['img_id']==img
-        x_plt=ptinfo_df['imgpt_y'][indices]
-        u_plt=ptinfo_df['vy'][indices]
+        x_plt=ptinfo_df['imgpt_x'][indices]
+        y_plt=ptinfo_df['imgpt_y'][indices]
+        u_plt=ptinfo_df['vx'][indices]
+        v_plt=ptinfo_df['vy'][indices]
         ptinfo_df["object_name_num"] = pd.factorize(ptinfo_df["object_name"])[0].astype(int)
         colors=ptinfo_df['object_name_num'][indices]
         plt.figure(figsize=(figsize_w, figsize_w))
         axes=plt.axes()
-        plt.quiver(y_plt[1:-1:intervals],x_plt[1:-1:intervals],v_plt[1:-1:intervals],0,colors[0:-1:intervals],cmap='turbo',scale=3.5e4,width=1e-3)
-        plt.title(f'row shift (image {img})',fontsize=font_size)
+        plt.quiver(x_plt[1:len(x_plt):intervals],y_plt[1:len(x_plt):intervals],0,v_plt[1:len(x_plt):intervals],colors[0:len(x_plt):intervals],cmap='turbo',width=1e-3)
+        plt.title(f'line shift (image {img})',fontsize=font_size)
         plt.xlim((0,image_info['cols'][img]));plt.ylim((0,image_info['rows'][img]))
         plt.xlabel('sample',fontsize=font_size);plt.ylabel('line',fontsize=font_size)
         minor_ticks_x=np.linspace(0,image_info['cols'][img],min_tick_num)
@@ -662,21 +668,19 @@ def accuracy_visulization(pt_info,save_path=None):
         axes.grid(which="minor", alpha=0.3)
         plt.savefig(os.path.join(save_path,f'row_shift_image_{img}.png'),bbox_inches='tight')
 
+#%% pre-defined parameters
 if __name__=='__main__':
-    ############ pre-defined parameters ############
     gcpt_info={'imgpt_x':[0],'imgpt_y':[0]};dompt_info={'imgpt_x':[0],'imgpt_y':[0]}
-    ################################################
 
-    ############ files ############
-    order_file=r"F:\\ToZY\\zdb.tri.txt"
-    tiept_image_file=r"F:\\ToZY\\tie.txt"
+    order_file=r"F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\zdb.tri.txt"
+    tiept_image_file=r"F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\zdb.tiepick-ties.tie"
     tiept_ground_file=r"F:\\ToZY\\all-L1.tie.txt"
     tiept_out_file=r'F:\\ToZY\\tiept_xq.txt'
-    sla_file=r"F:\\ToZY\\sla.txt"
-    accu_file=r"F:\\ToZY\\Residual\\Post\\ImgResidual.txt"
-    figure_save_path=r'F:\\ToZY\\figures'
-    ################################################
+    sla_file=r"F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\tie.sla"
+    accu_file=r"F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\result_freenet\\Residual\\Post\\ImgResidual.txt"
+    figure_save_path=r'F:\\phD_career\\multi_source_adjustment\\data\\guangzhou-demo\\auxiliary\\result_freenet\\figures'
 
+#%% load files
     order_info,image_info=load_order_file(order_file)
     # load_rpc_file(type='txt')
     # print(image_info)
@@ -697,7 +701,8 @@ if __name__=='__main__':
     # for key in tiept_info.keys():
     #     tiept_info[key]=tiept_info[key][indices]
 
-    # format_writing_tiepts(tiept_out_file)  
+    # format_writing_tiepts(tiept_out_file)
+#%% accuracy assessment  
     load_accuracy_file(accu_file)
 
     accuracy_visulization(tiept_info,figure_save_path)
